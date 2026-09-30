@@ -1,0 +1,237 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Linear Combination Dials</title>
+<style>
+  :root {
+    --bg: #F5F7FA; --card: #FFFFFF; --ink: #1B2432; --muted: #8A94A6; --line: #D6DCE8; --grid: #E6EAF2;
+    --a: #3B6CF6; --b: #2EBF8F; --r: #F5A623; --dot: #D64545; --good: #2EBF8F; --code: #1B2432; --codeink: #E8ECF4;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #121821; --card: #1B2432; --ink: #E8ECF4; --muted: #9AA4B5; --line: #2E3A4D; --grid: #243044; --code: #0D1219; --codeink: #E8ECF4; }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.45 "Segoe UI", system-ui, -apple-system, sans-serif; }
+  header { padding: 18px 16px 6px; max-width: 1100px; margin: 0 auto; }
+  .kicker { color: var(--r); font-weight: 700; letter-spacing: .06em; text-transform: uppercase; font-size: 12px; }
+  h1 { margin: 2px 0 4px; font-size: 24px; }
+  header p { margin: 0; color: var(--muted); }
+  main { max-width: 1100px; margin: 0 auto; padding: 10px 16px 24px; display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(280px, 1fr); gap: 16px; }
+  @media (max-width: 820px) { main { grid-template-columns: 1fr; } }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 14px; }
+  canvas { width: 100%; aspect-ratio: 1 / 1; display: block; touch-action: none; border-radius: 10px; cursor: default; }
+  .dial { margin: 10px 0 14px; }
+  .dial label { display: flex; justify-content: space-between; font-weight: 700; }
+  .dial input { width: 100%; }
+  .m { color: var(--a); } .n { color: var(--b); } .res { color: var(--r); }
+  .eq { font-size: 20px; font-weight: 700; margin: 6px 0 2px; }
+  .code { background: var(--code); color: var(--codeink); border-radius: 10px; padding: 10px 12px; font: 13.5px/1.5 Consolas, "Cascadia Mono", monospace; overflow-x: auto; white-space: pre; }
+  .code .c { color: #8A94A6; } .code .n { color: #F5A623; }
+  .row { display: flex; flex-wrap: wrap; gap: 8px; margin: 8px 0; }
+  button { font: inherit; border: 1px solid var(--line); background: var(--bg); color: var(--ink); padding: 7px 11px; border-radius: 9px; cursor: pointer; }
+  button:hover { border-color: var(--a); }
+  button.primary { background: var(--a); border-color: var(--a); color: #fff; }
+  .toggle { display: flex; gap: 8px; align-items: center; color: var(--muted); font-size: 14px; }
+  .note { font-size: 14px; color: var(--muted); margin: 8px 0 0; }
+  .banner { margin-top: 10px; padding: 9px 11px; border-radius: 9px; font-size: 14px; display: none; }
+  .banner.show { display: block; }
+  .banner.warn { background: color-mix(in srgb, var(--dot) 12%, transparent); border: 1px solid color-mix(in srgb, var(--dot) 40%, transparent); }
+  .banner.win { background: color-mix(in srgb, var(--good) 14%, transparent); border: 1px solid color-mix(in srgb, var(--good) 45%, transparent); }
+  h2 { font-size: 15px; margin: 14px 0 4px; }
+  footer { max-width: 1100px; margin: 0 auto; padding: 0 16px 22px; color: var(--muted); font-size: 13px; }
+</style>
+</head>
+<body>
+<header>
+  <div class="kicker">Eulerly · Lesson 2.3 · Try it yourself</div>
+  <h1>Linear combination dials</h1>
+  <p>Turn the dials <b class="m">m</b> and <b class="n">n</b>. The amber arrow is <b class="res">m·a + n·b</b>. Drag the tips of <b class="m">a</b> and <b class="n">b</b> to change the moves.</p>
+</header>
+
+<main>
+  <div class="card"><canvas id="cv" aria-label="Plane showing vectors a, b and the combination m a + n b"></canvas></div>
+
+  <div class="card">
+    <div class="toggle"><input type="checkbox" id="real"><label for="real">Allow any real weights (not just whole numbers)</label></div>
+    <div class="dial"><label for="m"><span class="m">m</span><span id="mv" class="m">2</span></label><input id="m" type="range" min="-3" max="3" step="1" value="2"></div>
+    <div class="dial"><label for="n"><span class="n">n</span><span id="nv" class="n">3</span></label><input id="n" type="range" min="-3" max="3" step="1" value="3"></div>
+    <div class="eq" id="eq"></div>
+    <div class="code" id="code"></div>
+
+    <div class="row">
+      <button id="lattice">Try every whole m, n from −3 to 3</button>
+      <button id="fill">Random real m, n × 400</button>
+      <button id="clear">Clear dots</button>
+      <button id="reset">Reset a and b</button>
+    </div>
+
+    <h2>Challenge: reach the target</h2>
+    <div class="row"><button class="primary" id="newTarget">New target</button><span class="note" id="tgtText">Press "New target", then set the dials.</span></div>
+    <div class="banner win" id="win"></div>
+    <div class="banner warn" id="warn"></div>
+    <p class="note">Every setting of the dials leaves a red dot. Which points can you reach? That set is called the <b>span</b> of a and b (Module 8).</p>
+  </div>
+</main>
+
+<footer>
+  Experiment idea: the random linear-combination notebook in <i>EngComp4: Land on Vector Spaces</i> (Barba et al.).
+  Watch next: 3Blue1Brown, <i>Essence of Linear Algebra</i>, chapter 2 (Linear combinations, span, and basis vectors).
+</footer>
+
+<script>
+(() => {
+  const cv = document.getElementById("cv"), ctx = cv.getContext("2d");
+  const $ = id => document.getElementById(id);
+  const css = v => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+  const DEF_A = [2, 1], DEF_B = [-1, 1];
+  let a = [...DEF_A], b = [...DEF_B], dots = [], target = null, drag = null;
+  const R = 9;                        // plane shows -R..R
+  let S = 1, W = 1;                   // pixels per unit, canvas size (css px)
+
+  function resize() {
+    const dpr = window.devicePixelRatio || 1, w = cv.clientWidth;
+    cv.width = w * dpr; cv.height = w * dpr; ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    W = w; S = w / (2 * R); draw();
+  }
+  const X = x => W / 2 + x * S, Y = y => W / 2 - y * S;
+  const toWorld = (px, py) => [(px - W / 2) / S, (W / 2 - py) / S];
+  const real = () => $("real").checked;
+  const fmt = v => (Math.abs(v - Math.round(v)) < 1e-9 ? String(Math.round(v)) : v.toFixed(2)).replace("-", "−");
+  const vec = v => `(${fmt(v[0])}, ${fmt(v[1])})`;
+  const comb = (m, n) => [m * a[0] + n * b[0], m * a[1] + n * b[1]];
+
+  function arrow(x0, y0, x1, y1, color, width = 3, dash = null) {
+    const dx = X(x1) - X(x0), dy = Y(y1) - Y(y0), len = Math.hypot(dx, dy);
+    if (len < 2) return;
+    const ux = dx / len, uy = dy / len, h = Math.min(14, len * 0.35);
+    ctx.strokeStyle = color; ctx.fillStyle = color; ctx.lineWidth = width; ctx.setLineDash(dash || []);
+    ctx.beginPath(); ctx.moveTo(X(x0), Y(y0)); ctx.lineTo(X(x1) - ux * h * 0.8, Y(y1) - uy * h * 0.8); ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.beginPath(); ctx.moveTo(X(x1), Y(y1));
+    ctx.lineTo(X(x1) - ux * h - uy * h * 0.45, Y(y1) - uy * h + ux * h * 0.45);
+    ctx.lineTo(X(x1) - ux * h + uy * h * 0.45, Y(y1) - uy * h - ux * h * 0.45);
+    ctx.closePath(); ctx.fill();
+  }
+  function label(text, x, y, color) {
+    ctx.font = "700 15px Segoe UI, system-ui, sans-serif"; ctx.fillStyle = color; ctx.fillText(text, X(x) + 6, Y(y) - 6);
+  }
+
+  function draw() {
+    const m = +$("m").value, n = +$("n").value, r = comb(m, n);
+    ctx.clearRect(0, 0, W, W);
+    ctx.fillStyle = css("--card"); ctx.fillRect(0, 0, W, W);
+    ctx.lineWidth = 1; ctx.strokeStyle = css("--grid");
+    for (let i = -R; i <= R; i++) {
+      ctx.beginPath(); ctx.moveTo(X(i), 0); ctx.lineTo(X(i), W); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(0, Y(i)); ctx.lineTo(W, Y(i)); ctx.stroke();
+    }
+    ctx.strokeStyle = css("--muted"); ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.moveTo(0, Y(0)); ctx.lineTo(W, Y(0)); ctx.moveTo(X(0), 0); ctx.lineTo(X(0), W); ctx.stroke();
+
+    // span warning: a and b on one line
+    const cross = a[0] * b[1] - a[1] * b[0];
+    if (Math.abs(cross) < 1e-9 && (a[0] || a[1])) {
+      ctx.strokeStyle = css("--dot"); ctx.globalAlpha = 0.35; ctx.lineWidth = 6;
+      const k = 3 * R / Math.hypot(...a);
+      ctx.beginPath(); ctx.moveTo(X(-a[0] * k), Y(-a[1] * k)); ctx.lineTo(X(a[0] * k), Y(a[1] * k)); ctx.stroke(); ctx.globalAlpha = 1;
+    }
+
+    ctx.fillStyle = css("--dot");
+    for (const [x, y] of dots) { ctx.beginPath(); ctx.arc(X(x), Y(y), real() ? 2.2 : 4, 0, 7); ctx.fill(); }
+
+    if (target) {
+      ctx.strokeStyle = css("--r"); ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.arc(X(target[0]), Y(target[1]), 10, 0, 7); ctx.stroke();
+      ctx.beginPath(); ctx.arc(X(target[0]), Y(target[1]), 4, 0, 7); ctx.stroke();
+    }
+
+    // head to tail: m a, then n b
+    const ma = [m * a[0], m * a[1]];
+    arrow(0, 0, ma[0], ma[1], css("--a"), 2, [6, 5]);
+    arrow(ma[0], ma[1], r[0], r[1], css("--b"), 2, [6, 5]);
+    arrow(0, 0, a[0], a[1], css("--a"), 4); label("a", a[0], a[1], css("--a"));
+    arrow(0, 0, b[0], b[1], css("--b"), 4); label("b", b[0], b[1], css("--b"));
+    arrow(0, 0, r[0], r[1], css("--r"), 4.5); label(vec(r), r[0], r[1], css("--r"));
+    for (const v of [a, b]) { ctx.fillStyle = css("--card"); ctx.strokeStyle = css("--ink"); ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.arc(X(v[0]), Y(v[1]), 6, 0, 7); ctx.fill(); ctx.stroke(); }
+
+    $("mv").textContent = fmt(m); $("nv").textContent = fmt(n);
+    $("eq").innerHTML = `<span class="m">${fmt(m)}</span>·a + <span class="n">${fmt(n)}</span>·b = <span class="res">${vec(r)}</span>`;
+    $("code").innerHTML =
+      `a = np.array([<span class="n">${fmt(a[0])}</span>, <span class="n">${fmt(a[1])}</span>])\n` +
+      `b = np.array([<span class="n">${fmt(b[0])}</span>, <span class="n">${fmt(b[1])}</span>])\n` +
+      `<span class="n">${fmt(m)}</span> * a + <span class="n">${fmt(n)}</span> * b   <span class="c"># ${vec(r)}</span>`.replaceAll("−", "-");
+    $("warn").classList.toggle("show", Math.abs(cross) < 1e-9);
+    $("warn").textContent = "a and b point along the same line, so every combination stays on that line. The span is only a line, not the whole plane.";
+    if (target) {
+      const hit = Math.hypot(r[0] - target[0], r[1] - target[1]) < 1e-6;
+      $("win").classList.toggle("show", hit);
+      if (hit) $("win").textContent = `Reached ${vec(target)} with m = ${fmt(m)}, n = ${fmt(n)}.`;
+    }
+  }
+
+  function leaveDot() {
+    const r = comb(+$("m").value, +$("n").value);
+    if (!dots.some(d => Math.hypot(d[0] - r[0], d[1] - r[1]) < 1e-9)) dots.push(r);
+  }
+  function setDials(realMode) {
+    for (const id of ["m", "n"]) {
+      const el = $(id); el.step = realMode ? 0.1 : 1;
+      if (!realMode) el.value = Math.round(+el.value);
+    }
+  }
+
+  $("m").addEventListener("input", () => { leaveDot(); draw(); });
+  $("n").addEventListener("input", () => { leaveDot(); draw(); });
+  $("real").addEventListener("change", e => { setDials(e.target.checked); draw(); });
+  $("lattice").addEventListener("click", () => {
+    for (let i = -3; i <= 3; i++) for (let j = -3; j <= 3; j++) { const r = comb(i, j); dots.push(r); }
+    draw();
+  });
+  $("fill").addEventListener("click", () => {
+    for (let k = 0; k < 400; k++) dots.push(comb(Math.random() * 6 - 3, Math.random() * 6 - 3));
+    draw();
+  });
+  $("clear").addEventListener("click", () => { dots = []; draw(); });
+  $("reset").addEventListener("click", () => { a = [...DEF_A]; b = [...DEF_B]; dots = []; target = null; $("tgtText").textContent = 'Press "New target", then set the dials.'; $("win").classList.remove("show"); draw(); });
+  $("newTarget").addEventListener("click", () => {
+    const cross = a[0] * b[1] - a[1] * b[0];
+    let m, n, t;
+    do { m = Math.floor(Math.random() * 7) - 3; n = Math.floor(Math.random() * 7) - 3; t = comb(m, n); }
+    while ((m === +$("m").value && n === +$("n").value) || Math.abs(t[0]) > R - 1 || Math.abs(t[1]) > R - 1);
+    target = t;
+    $("tgtText").textContent = Math.abs(cross) < 1e-9
+      ? `Target ${vec(t)}. Hint: with a and b on one line, many settings reach it.`
+      : `Target ${vec(t)}. Find whole numbers m and n.`;
+    if (real()) { $("real").checked = false; setDials(false); }
+    draw();
+  });
+
+  // drag the tips of a and b (snaps to whole numbers)
+  function pick(e) {
+    const rect = cv.getBoundingClientRect(), px = e.clientX - rect.left, py = e.clientY - rect.top;
+    for (const [name, v] of [["a", a], ["b", b]]) if (Math.hypot(X(v[0]) - px, Y(v[1]) - py) < 14) return name;
+    return null;
+  }
+  cv.addEventListener("pointerdown", e => { drag = pick(e); if (drag) cv.setPointerCapture(e.pointerId); });
+  cv.addEventListener("pointermove", e => {
+    if (!drag) { cv.style.cursor = pick(e) ? "grab" : "default"; return; }
+    const rect = cv.getBoundingClientRect();
+    const [x, y] = toWorld(e.clientX - rect.left, e.clientY - rect.top).map(v => Math.max(-R + 1, Math.min(R - 1, Math.round(v))));
+    if (x === 0 && y === 0) return;
+    if (drag === "a") a = [x, y]; else b = [x, y];
+    dots = []; target = null; $("win").classList.remove("show"); $("tgtText").textContent = 'Press "New target", then set the dials.';
+    draw();
+  });
+  cv.addEventListener("pointerup", () => { drag = null; });
+
+  window.addEventListener("resize", resize);
+  if (window.matchMedia) window.matchMedia("(prefers-color-scheme: dark)").addEventListener?.("change", draw);
+  dots.push(comb(2, 3));
+  resize();
+})();
+</script>
+</body>
+</html>

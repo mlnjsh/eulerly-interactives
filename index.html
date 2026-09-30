@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Eulerly Interactives</title>
+<meta name="description" content="Free interactive linear algebra explorations from Eulerly's course Applied Linear Algebra: The Math Behind AI and Beyond.">
+<style>
+  :root { --bg: #F5F7FA; --card: #FFFFFF; --ink: #1B2432; --muted: #8A94A6; --line: #D6DCE8; --accent: #F5A623; --blue: #3B6CF6; }
+  @media (prefers-color-scheme: dark) { :root { --bg: #121821; --card: #1B2432; --ink: #E8ECF4; --muted: #9AA4B5; --line: #2E3A4D; } }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 16px/1.5 "Segoe UI", system-ui, -apple-system, sans-serif; }
+  .wrap { max-width: 900px; margin: 0 auto; padding: 28px 16px 40px; }
+  .kicker { color: var(--accent); font-weight: 700; letter-spacing: .06em; text-transform: uppercase; font-size: 12px; }
+  h1 { margin: 4px 0 6px; font-size: 30px; }
+  .lead { color: var(--muted); margin: 0 0 22px; }
+  h2 { font-size: 15px; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; margin: 26px 0 10px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 14px; }
+  a.card { display: block; background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 16px; color: inherit; text-decoration: none; transition: border-color .15s, transform .15s; }
+  a.card:hover { border-color: var(--blue); transform: translateY(-2px); }
+  .tag { font-size: 12px; font-weight: 700; color: var(--blue); }
+  .card h3 { margin: 4px 0 6px; font-size: 18px; }
+  .card p { margin: 0; color: var(--muted); font-size: 14.5px; }
+  footer { color: var(--muted); font-size: 13px; margin-top: 30px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="kicker">Eulerly</div>
+  <h1>Linear algebra you can touch</h1>
+  <p class="lead">Free interactive explorations from the course <b>Applied Linear Algebra: The Math Behind AI and Beyond</b>. Drag, turn the dials, and watch the maths move. Every page shows the matching line of NumPy.</p>
+
+  <h2>Module 2 · Vectors: The Toolkit</h2>
+  <div class="grid">
+    <a class="card" href="norm_explorer.html">
+      <div class="tag">Lesson 2.2 · Length and norms</div>
+      <h3>Norm explorer</h3>
+      <p>Drag a vector and compare three ways to measure it: the drone (L2), the rider (L1) and the crane (L∞), with their circle, diamond and square.</p>
+    </a>
+    <a class="card" href="linear_combinations.html">
+      <div class="tag">Lesson 2.3 · Linear combinations</div>
+      <h3>Linear combination dials</h3>
+      <p>Turn the weights m and n, leave a dot at every setting, fill the plane, and hit targets. Drag a and b to discover when the span collapses to a line.</p>
+    </a>
+  </div>
+
+  <footer>More explorations are added as new modules are released. © Eulerly.</footer>
+</div>
+</body>
+</html>
