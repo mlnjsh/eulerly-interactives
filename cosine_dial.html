@@ -1,0 +1,413 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cosine Similarity Dial</title>
+<style>
+  :root {
+    --bg: #F5F7FA; --card: #FFFFFF; --ink: #1B2432; --muted: #8A94A6; --line: #D6DCE8; --grid: #E6EAF2;
+    --a: #F5A623; --b: #3B6CF6; --good: #2EBF8F; --mid: #B7C0CF; --bad: #D64545; --code: #1B2432; --codeink: #E8ECF4;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #121821; --card: #1B2432; --ink: #E8ECF4; --muted: #9AA4B5; --line: #2E3A4D; --grid: #243044; --mid: #5B6880; --code: #0D1219; }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.45 "Segoe UI", system-ui, -apple-system, sans-serif; }
+  header { padding: 18px 16px 6px; max-width: 1100px; margin: 0 auto; }
+  .back { display: inline-block; color: var(--muted); font-size: 13px; text-decoration: none; margin-bottom: 6px; }
+  .back:hover { color: var(--b); }
+  .kicker { color: var(--a); font-weight: 700; letter-spacing: .06em; text-transform: uppercase; font-size: 12px; }
+  h1 { margin: 2px 0 4px; font-size: 24px; }
+  header p { margin: 0; color: var(--muted); }
+  main { max-width: 1100px; margin: 0 auto; padding: 10px 16px 24px; display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(290px, 1fr); gap: 16px; }
+  @media (max-width: 820px) { main { grid-template-columns: 1fr; } }
+  @media (min-width: 821px) { main > .card:first-child { position: sticky; top: 12px; align-self: start; } }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 14px; min-width: 0; }
+  canvas { width: 100%; aspect-ratio: 1 / 1; display: block; touch-action: none; border-radius: 10px; }
+  .a { color: var(--a); } .b { color: var(--b); } .good { color: var(--good); } .bad { color: var(--bad); } .muted { color: var(--muted); }
+  .big { font-size: 20px; font-weight: 700; margin: 0 0 8px; }
+  .item { display: grid; grid-template-columns: 1fr auto; gap: 2px 10px; align-items: baseline; padding: 7px 0; border-top: 1px solid var(--line); }
+  .item .name { font-weight: 700; }
+  .item .val { font-weight: 800; font-size: 18px; }
+  .item .calc { grid-column: 1 / 3; font-family: Consolas, "Cascadia Mono", monospace; font-size: 13.5px; overflow-wrap: anywhere; }
+  .gauge { display: block; width: 100%; max-width: 330px; margin: 6px auto 0; }
+  .reading { text-align: center; font-size: 26px; font-weight: 800; margin: -4px 0 0; }
+  .verdict { text-align: center; font-weight: 700; margin: 0 0 6px; }
+  .code { background: var(--code); color: var(--codeink); border-radius: 10px; padding: 10px 12px; font: 13.5px/1.5 Consolas, "Cascadia Mono", monospace; overflow-x: auto; white-space: pre; margin-top: 10px; }
+  .code .c { color: #8A94A6; } .code .n { color: #F5A623; }
+  .row { display: flex; flex-wrap: wrap; gap: 8px; margin: 8px 0; align-items: center; }
+  .grp { display: inline-flex; gap: 8px; align-items: center; }
+  .seg { display: inline-flex; border: 1px solid var(--line); border-radius: 9px; overflow: hidden; }
+  .seg button { border: 0; border-radius: 0; }
+  .seg button.on { background: var(--ink); color: var(--card); }
+  button { font: inherit; border: 1px solid var(--line); background: var(--bg); color: var(--ink); padding: 7px 11px; border-radius: 9px; cursor: pointer; }
+  button:hover { border-color: var(--b); }
+  button.primary { background: var(--b); border-color: var(--b); color: #fff; }
+  button:focus-visible, canvas:focus-visible, input:focus-visible, a:focus-visible { outline: 3px solid var(--b); outline-offset: 2px; }
+  label.chk { display: flex; gap: 6px; align-items: center; color: var(--muted); font-size: 14px; }
+  h2 { font-size: 15px; margin: 14px 0 4px; }
+  .banner { margin-top: 8px; padding: 9px 11px; border-radius: 9px; font-size: 14px; display: none; background: color-mix(in srgb, var(--good) 14%, transparent); border: 1px solid color-mix(in srgb, var(--good) 45%, transparent); }
+  .banner.show { display: block; }
+  .note { font-size: 14px; color: var(--muted); }
+  ul.try { margin: 4px 0 0; padding-left: 20px; font-size: 14px; }
+  ul.try li { margin: 3px 0; }
+  .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  footer { max-width: 1100px; margin: 0 auto; padding: 0 16px 22px; color: var(--muted); font-size: 13px; }
+</style>
+</head>
+<body>
+<header>
+  <a class="back" href="index.html">← All interactives</a>
+  <div class="kicker">Eulerly · Lesson 3.3 · Try it yourself</div>
+  <h1>Cosine similarity dial</h1>
+  <p>Drag the tips of <b class="a">a</b> and <b class="b">b</b>. The dial reads cos θ = a · b / (‖a‖ ‖b‖): <b class="good">+1</b> same direction, <b>0</b> unrelated (a right angle), <b class="bad">−1</b> opposite. It compares directions only, so stretching an arrow never moves the needle.</p>
+</header>
+
+<main>
+  <div class="card">
+    <canvas id="cv" tabindex="0" aria-label="Plane with draggable vectors a and b. Focus here and use the arrow keys to move the selected vector; press A or B to choose it, plus or minus to stretch or shrink it." aria-describedby="live"></canvas>
+    <div class="row">
+      <span class="grp"><span class="note">Arrow keys move:</span>
+      <span class="seg" id="keyPick" role="group" aria-label="Vector moved by the arrow keys">
+        <button data-k="a" class="on" aria-pressed="true">a</button>
+        <button data-k="b" aria-pressed="false">b</button>
+      </span></span>
+      <span class="grp"><span class="note">Grid:</span>
+      <span class="seg" id="zoom" role="group" aria-label="Grid size">
+        <button data-r="5" class="on" aria-pressed="true">±5</button>
+        <button data-r="10" aria-pressed="false">±10</button>
+      </span></span>
+    </div>
+    <div class="row">
+      <label class="chk"><input type="checkbox" id="snap" checked> snap to whole numbers</label>
+      <label class="chk"><input type="checkbox" id="lock"> lock directions (dragging only stretches)</label>
+      <label class="chk"><input type="checkbox" id="units" checked> show unit vectors</label>
+    </div>
+    <h2>Stretch an arrow, watch the needle stay put</h2>
+    <div class="row">
+      <button data-scale="a,2">a × 2</button>
+      <button data-scale="a,0.5">a × ½</button>
+      <button data-scale="b,2">b × 2</button>
+      <button data-scale="b,0.5">b × ½</button>
+      <button data-scale="b,-1">flip b (× −1)</button>
+    </div>
+    <div class="banner" id="scaleMsg" role="status"></div>
+  </div>
+
+  <div class="card">
+    <div class="big"><span class="a">a = <span id="atxt"></span></span> &nbsp; <span class="b">b = <span id="btxt"></span></span></div>
+
+    <div class="item"><div class="name">a · b <span class="muted">(dot product)</span></div><div class="val" id="dotv"></div><div class="calc" id="dotc"></div></div>
+    <div class="item"><div class="name a">‖a‖</div><div class="val a" id="nav"></div><div class="calc" id="nac"></div></div>
+    <div class="item"><div class="name b">‖b‖</div><div class="val b" id="nbv"></div><div class="calc" id="nbc"></div></div>
+    <div class="item"><div class="name">cos θ = a · b / (‖a‖ ‖b‖)</div><div class="val" id="cosv"></div><div class="calc" id="cosc"></div></div>
+    <div class="item"><div class="name">angle θ</div><div class="val" id="angv"></div><div class="calc" id="angc"></div></div>
+
+    <svg class="gauge" id="gauge" viewBox="0 0 300 172" role="img" aria-labelledby="gaugeTitle">
+      <title id="gaugeTitle">Similarity dial</title>
+      <g id="zones"></g>
+      <g id="ticks"></g>
+      <text x="38" y="166" text-anchor="middle" font-size="14" font-weight="700" fill="var(--bad)">−1</text>
+      <text x="262" y="166" text-anchor="middle" font-size="14" font-weight="700" fill="var(--good)">+1</text>
+      <text x="150" y="16" text-anchor="middle" font-size="13" font-weight="700" fill="var(--muted)">0 · unrelated</text>
+      <text x="64" y="44" text-anchor="end" font-size="13" font-weight="700" fill="var(--bad)">opposite</text>
+      <text x="236" y="44" text-anchor="start" font-size="13" font-weight="700" fill="var(--good)">alike</text>
+      <line id="needle" x1="150" y1="146" x2="150" y2="60" stroke="var(--ink)" stroke-width="5" stroke-linecap="round"/>
+      <circle cx="150" cy="146" r="7" fill="var(--ink)"/>
+    </svg>
+    <div class="reading" id="reading"></div>
+    <div class="verdict" id="verdict"></div>
+
+    <div class="item"><div class="name">Unit vectors: â · b̂</div><div class="val" id="uv"></div>
+      <div class="calc" id="uc"></div></div>
+
+    <div class="code" id="code"></div>
+
+    <h2>Lesson examples</h2>
+    <div class="row">
+      <button class="primary" data-p="0">(3, 4) and (4, 3)</button>
+      <button class="primary" data-p="1">P (1, 1), Q (2, 2)</button>
+      <button class="primary" data-p="2">P (1, 1), R (−1, 1)</button>
+      <button class="primary" data-p="3">Turned 135°</button>
+      <button class="primary" data-p="4">Opposite</button>
+      <button class="primary" data-p="5">Short vs long article</button>
+    </div>
+    <div class="note" id="pText">Pick an example, then drag.</div>
+
+    <h2>What to try</h2>
+    <ul class="try">
+      <li>Keep <b class="a">a</b> fixed and swing <b class="b">b</b> once around it. Where does the needle cross 0? Where does it hit −1?</li>
+      <li>Press <b>b × 2</b> a few times. a · b and ‖b‖ grow, cos θ does not.</li>
+      <li>Find two whole-number arrows with cos θ exactly 0 that are not on the axes.</li>
+      <li>Load "Short vs long article". The tips are far apart, yet the score is exactly 1.</li>
+      <li>Tick "lock directions" and drag a tip: only the length changes, the dial never moves.</li>
+    </ul>
+    <div class="sr" id="live" aria-live="polite"></div>
+  </div>
+</main>
+
+<footer>
+  From Eulerly lesson 3.3, <i>Cosine similarity: the similarity dial</i>. The lesson's viewer and article examples have three and four slots; the formula is exactly the same, the picture here just keeps two.
+  Source: Boyd and Vandenberghe, <i>VMLS</i> §3.4. Watch next: 3Blue1Brown, <i>Essence of Linear Algebra</i>, chapter 9 (Dot products and duality).
+</footer>
+
+<script>
+(() => {
+  const cv = document.getElementById("cv"), ctx = cv.getContext("2d");
+  const $ = id => document.getElementById(id);
+  const css = v => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+  let R = 5, W = 1, S = 1, a = [3, 4], b = [4, 3], drag = null, dragDir = null, keyVec = "a", liveT = 0;
+
+  const PRESETS = [
+    { a: [3, 4], b: [4, 3], R: 5, text: "a · b = 24 and both lengths are 5, so cos θ = 24 / 25 = 0.96. Very alike." },
+    { a: [1, 1], b: [2, 2], R: 5, text: "Q is twice as long as P, but they point the same way: exactly 1." },
+    { a: [1, 1], b: [-1, 1], R: 5, text: "P · R = −1 + 1 = 0. A right angle: unrelated." },
+    { a: [4, 0], b: [-3, 3], R: 5, text: "b has turned 135° away from a. The needle is in the red: about −0.71." },
+    { a: [4, 0], b: [-3, 0], R: 5, text: "b points exactly the opposite way: −1, whatever the lengths." },
+    { a: [3, 2], b: [9, 6], R: 10, text: "Counts of goal and team in a short and a long sports article. The tips are about 7.21 apart, but cos θ = 1: same topic." },
+  ];
+
+  const dot = (p, q) => p[0] * q[0] + p[1] * q[1], len = p => Math.hypot(p[0], p[1]);
+  const r2 = x => Math.round(x * 100) / 100;
+  const f = x => { const r = r2(x); return (Number.isInteger(r) ? String(r) : r.toFixed(2).replace(/0$/, "")).replace("-", "−"); };
+  const p = x => (r2(x) < 0 ? `(${f(x)})` : f(x));
+  const eq = x => (Math.abs(x - r2(x)) < 1e-9 ? "=" : "≈");
+  const vec = v => `(${f(v[0])}, ${f(v[1])})`;
+  const X = x => W / 2 + x * S, Y = y => W / 2 - y * S;
+  const zone = c => (c > 0.15 ? "--good" : c < -0.15 ? "--bad" : "--muted");
+
+  function stats() {
+    const d = dot(a, b), na = len(a), nb = len(b);
+    let c = d / (na * nb); c = Math.max(-1, Math.min(1, c));
+    if (Math.abs(d) < 1e-9) c = 0;
+    return { d, na, nb, c, deg: Math.acos(c) * 180 / Math.PI };
+  }
+  function verdictText(c, d) {
+    if (c > 1 - 1e-9) return "Same direction: as alike as possible.";
+    if (c < -1 + 1e-9) return "Exactly opposite directions.";
+    if (Math.abs(d) < 1e-9) return "Unrelated: a right angle (orthogonal).";
+    if (c > 0.15) return "Alike: they point roughly the same way.";
+    if (c < -0.15) return "Opposite: they point roughly away from each other.";
+    return "Nearly unrelated: close to a right angle.";
+  }
+
+  function resize() {
+    const dpr = window.devicePixelRatio || 1, w = cv.clientWidth;
+    cv.width = w * dpr; cv.height = w * dpr; ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    W = w; S = w / (2 * R); draw();
+  }
+  function line(x0, y0, x1, y1, color, width, dash) {
+    ctx.strokeStyle = color; ctx.lineWidth = width; ctx.setLineDash(dash || []);
+    ctx.beginPath(); ctx.moveTo(X(x0), Y(y0)); ctx.lineTo(X(x1), Y(y1)); ctx.stroke(); ctx.setLineDash([]);
+  }
+  function arrow(v, color, width) {
+    const dx = X(v[0]) - X(0), dy = Y(v[1]) - Y(0), L = Math.hypot(dx, dy);
+    if (L < 3) return;
+    const ux = dx / L, uy = dy / L, h = Math.min(14, L * 0.4);
+    ctx.strokeStyle = color; ctx.lineWidth = width;
+    ctx.beginPath(); ctx.moveTo(X(0), Y(0)); ctx.lineTo(X(v[0]) - ux * h * 0.8, Y(v[1]) - uy * h * 0.8); ctx.stroke();
+    ctx.fillStyle = color; ctx.beginPath(); ctx.moveTo(X(v[0]), Y(v[1]));
+    ctx.lineTo(X(v[0]) - ux * h - uy * h * 0.45, Y(v[1]) - uy * h + ux * h * 0.45);
+    ctx.lineTo(X(v[0]) - ux * h + uy * h * 0.45, Y(v[1]) - uy * h - ux * h * 0.45); ctx.closePath(); ctx.fill();
+  }
+  function handle(v, color, active) {
+    ctx.fillStyle = css("--card"); ctx.strokeStyle = color; ctx.lineWidth = active ? 3.5 : 2.5;
+    ctx.beginPath(); ctx.arc(X(v[0]), Y(v[1]), active ? 9 : 7, 0, 7); ctx.fill(); ctx.stroke();
+  }
+  function label(text, v, color) {
+    const L = len(v) || 1, ox = v[0] / L * 14, oy = -v[1] / L * 14;
+    ctx.font = "700 15px Segoe UI, system-ui, sans-serif"; ctx.fillStyle = color;
+    const w = ctx.measureText(text).width;
+    let tx = X(v[0]) + ox - (ox < -2 ? w : 0), ty = Y(v[1]) + oy + (oy < -2 ? -4 : 14);
+    if (tx < 4 || tx > W - w - 4) {   // no room beside the tip: put the label above it (or below, near the top edge)
+      tx = X(v[0]) - w / 2; ty = Y(v[1]) > 40 ? Y(v[1]) - 16 : Y(v[1]) + 28;
+    }
+    tx = Math.max(4, Math.min(W - w - 4, tx)); ty = Math.max(16, Math.min(W - 6, ty));
+    ctx.fillText(text, tx, ty);
+  }
+
+  function draw() {
+    const st = stats();
+    ctx.clearRect(0, 0, W, W); ctx.fillStyle = css("--card"); ctx.fillRect(0, 0, W, W);
+    ctx.strokeStyle = css("--grid"); ctx.lineWidth = 1;
+    for (let i = -R; i <= R; i++) {
+      ctx.beginPath(); ctx.moveTo(X(i), 0); ctx.lineTo(X(i), W); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(0, Y(i)); ctx.lineTo(W, Y(i)); ctx.stroke();
+    }
+    ctx.strokeStyle = css("--muted"); ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.moveTo(0, Y(0)); ctx.lineTo(W, Y(0)); ctx.moveTo(X(0), 0); ctx.lineTo(X(0), W); ctx.stroke();
+
+    // the angle between a and b: an arc, or a right-angle marker
+    const ta = Math.atan2(a[1], a[0]), tb = Math.atan2(b[1], b[0]);
+    let dt = tb - ta; while (dt > Math.PI) dt -= 2 * Math.PI; while (dt < -Math.PI) dt += 2 * Math.PI;
+    const rad = Math.min(34, 0.45 * Math.min(len(a), len(b)) * S + 12);
+    ctx.strokeStyle = css(zone(st.c)); ctx.lineWidth = 3;
+    if (Math.abs(st.d) < 1e-9) {
+      const ua = [a[0] / st.na, a[1] / st.na], ub = [b[0] / st.nb, b[1] / st.nb], s = 16 / S;
+      ctx.beginPath(); ctx.moveTo(X(ua[0] * s), Y(ua[1] * s)); ctx.lineTo(X((ua[0] + ub[0]) * s), Y((ua[1] + ub[1]) * s)); ctx.lineTo(X(ub[0] * s), Y(ub[1] * s)); ctx.stroke();
+    } else if (Math.abs(dt) > 1e-6) {
+      ctx.beginPath(); ctx.arc(X(0), Y(0), rad, -ta, -ta - dt, dt > 0); ctx.stroke();
+    }
+
+    if ($("units").checked) {
+      ctx.strokeStyle = css("--muted"); ctx.lineWidth = 1.5; ctx.setLineDash([4, 4]);
+      ctx.beginPath(); ctx.arc(X(0), Y(0), S, 0, 7); ctx.stroke(); ctx.setLineDash([]);
+    }
+    arrow(a, css("--a"), 4); arrow(b, css("--b"), 4);
+    if ($("units").checked) {
+      arrow([a[0] / st.na, a[1] / st.na], css("--a"), 7);
+      arrow([b[0] / st.nb, b[1] / st.nb], css("--b"), 7);
+    }
+    handle(a, css("--a"), keyVec === "a"); handle(b, css("--b"), keyVec === "b");
+    label("a " + vec(a), a, css("--a")); label("b " + vec(b), b, css("--b"));
+
+    // panel
+    $("atxt").textContent = vec(a); $("btxt").textContent = vec(b);
+    $("dotv").textContent = f(st.d);
+    $("dotc").textContent = `${p(a[0])} × ${p(b[0])} + ${p(a[1])} × ${p(b[1])} = ${f(a[0] * b[0])} + ${p(a[1] * b[1])} ${eq(st.d)} ${f(st.d)}`;
+    const sa = a[0] ** 2 + a[1] ** 2, sb = b[0] ** 2 + b[1] ** 2;
+    $("nav").textContent = f(st.na); $("nac").textContent = `√(${p(a[0])}² + ${p(a[1])}²) = √${f(sa)} ${eq(st.na)} ${f(st.na)}`;
+    $("nbv").textContent = f(st.nb); $("nbc").textContent = `√(${p(b[0])}² + ${p(b[1])}²) = √${f(sb)} ${eq(st.nb)} ${f(st.nb)}`;
+    $("cosv").textContent = f(st.c); $("cosv").style.color = css(zone(st.c));
+    $("cosc").textContent = `${f(st.d)} / (${f(st.na)} × ${f(st.nb)}) ${eq(st.c)} ${f(st.c)}`;
+    const deg = Math.round(st.deg * 10) / 10;
+    $("angv").textContent = `${deg.toFixed(1).replace(/\.0$/, "")}°`;
+    $("angc").textContent = `arccos(${f(st.c)}) ${Math.abs(st.deg - deg) < 1e-9 ? "=" : "≈"} ${deg.toFixed(1).replace(/\.0$/, "")}°`;
+
+    // dial: −1 on the left, 0 at the top, +1 on the right
+    const phi = (1 - st.c) / 2 * Math.PI, nl = 84;
+    $("needle").setAttribute("x2", (150 + nl * Math.cos(phi)).toFixed(2));
+    $("needle").setAttribute("y2", (146 - nl * Math.sin(phi)).toFixed(2));
+    $("reading").textContent = `cos θ ${eq(st.c)} ${f(st.c)}`; $("reading").style.color = css(zone(st.c));
+    $("verdict").textContent = verdictText(st.c, st.d); $("verdict").style.color = css(zone(st.c));
+    $("gaugeTitle").textContent = `Similarity dial reading ${f(st.c)}: ${verdictText(st.c, st.d)}`;
+
+    const ua = [a[0] / st.na, a[1] / st.na], ub = [b[0] / st.nb, b[1] / st.nb], uu = dot(ua, ub);
+    $("uv").textContent = f(uu);
+    $("uc").textContent = `â = ${vec(ua)}, b̂ = ${vec(ub)}: the lengths are gone, the same number ${f(st.c)} is left.`;
+
+    const code = `a = np.array([<span class="n">${f(a[0])}</span>, <span class="n">${f(a[1])}</span>])\n` +
+      `b = np.array([<span class="n">${f(b[0])}</span>, <span class="n">${f(b[1])}</span>])\n` +
+      `a @ b                          <span class="c"># ${f(st.d)}</span>\n` +
+      `a @ b / (norm(a) * norm(b))    <span class="c"># cos θ = ${f(st.c)}</span>\n` +
+      `np.degrees(np.arccos(_))       <span class="c"># ${deg.toFixed(1).replace(/\.0$/, "")}°</span>`;
+    $("code").innerHTML = code.replaceAll("−", "-");
+
+    clearTimeout(liveT);
+    liveT = setTimeout(() => { $("live").textContent = `a ${vec(a)}, b ${vec(b)}. cos theta ${f(st.c)}, angle ${deg} degrees. ${verdictText(st.c, st.d)}`; }, 350);
+  }
+
+  function buildGauge() {
+    const cx = 150, cy = 146, Rg = 108, P = v => { const t = (1 - v) / 2 * Math.PI; return [cx + Rg * Math.cos(t), cy - Rg * Math.sin(t)]; };
+    const arc = (v0, v1, color) => {
+      const [x0, y0] = P(v0), [x1, y1] = P(v1);
+      return `<path d="M${x0.toFixed(2)} ${y0.toFixed(2)} A${Rg} ${Rg} 0 0 1 ${x1.toFixed(2)} ${y1.toFixed(2)}" fill="none" stroke="var(${color})" stroke-width="18"/>`;
+    };
+    $("zones").innerHTML = arc(-1, -0.15, "--bad") + arc(-0.15, 0.15, "--mid") + arc(0.15, 1, "--good");
+    let t = "";
+    for (const v of [-1, -0.5, 0, 0.5, 1]) {
+      const th = (1 - v) / 2 * Math.PI, r0 = Rg - 14, r1 = Rg - 22;
+      t += `<line x1="${(cx + r0 * Math.cos(th)).toFixed(2)}" y1="${(cy - r0 * Math.sin(th)).toFixed(2)}" x2="${(cx + r1 * Math.cos(th)).toFixed(2)}" y2="${(cy - r1 * Math.sin(th)).toFixed(2)}" stroke="var(--muted)" stroke-width="2"/>`;
+    }
+    $("ticks").innerHTML = t;
+  }
+
+  const clampR = v => Math.max(-R + 0.5, Math.min(R - 0.5, v));
+  function fitInside(v) {
+    const m = Math.max(Math.abs(v[0]), Math.abs(v[1]));
+    return m > R - 0.5 ? [v[0] * (R - 0.5) / m, v[1] * (R - 0.5) / m] : v;
+  }
+  function toWorld(e) {
+    const rect = cv.getBoundingClientRect();
+    return [(e.clientX - rect.left - W / 2) / S, (W / 2 - (e.clientY - rect.top)) / S];
+  }
+  function pick(e) {
+    const rect = cv.getBoundingClientRect(), px = e.clientX - rect.left, py = e.clientY - rect.top;
+    const da = Math.hypot(X(a[0]) - px, Y(a[1]) - py), db = Math.hypot(X(b[0]) - px, Y(b[1]) - py);
+    const reach = e.pointerType === "touch" ? 30 : 18;
+    if (Math.min(da, db) > reach) return null;
+    return db <= da ? "b" : "a";
+  }
+  function setVec(name, v) {
+    if (Math.hypot(v[0], v[1]) < 1e-9) return;
+    if (name === "a") a = v; else b = v;
+  }
+  function moveTo(world) {
+    let v;
+    if ($("lock").checked) {
+      // stretch the drag-start arrow by a factor in steps of 0.05, so the coordinates stay readable
+      const v0 = dragDir, s = Math.max(0.05, Math.round(dot(world, v0) / dot(v0, v0) / 0.05) * 0.05);
+      v = [+(s * v0[0]).toFixed(4), +(s * v0[1]).toFixed(4)];
+      if (Math.max(Math.abs(v[0]), Math.abs(v[1])) > R - 0.5 || len(v) < 0.2) return;
+    } else {
+      const step = $("snap").checked ? 1 : 0.1;
+      v = world.map(c => clampR(+(Math.round(c / step) * step).toFixed(1)));
+    }
+    setVec(drag, v); draw();
+  }
+  cv.addEventListener("pointerdown", e => {
+    drag = pick(e); if (!drag) return;
+    keyVec = drag; syncKeyPick();
+    dragDir = [...(drag === "a" ? a : b)];
+    cv.setPointerCapture(e.pointerId); $("scaleMsg").classList.remove("show"); moveTo(toWorld(e));
+  });
+  cv.addEventListener("pointermove", e => {
+    if (!drag) { cv.style.cursor = pick(e) ? "grab" : "default"; return; }
+    moveTo(toWorld(e));
+  });
+  cv.addEventListener("pointerup", () => { drag = null; });
+  cv.addEventListener("pointercancel", () => { drag = null; });
+
+  function scale(name, k) {
+    const v = name === "a" ? a : b, nv = [v[0] * k, v[1] * k], before = stats();
+    if (Math.max(Math.abs(nv[0]), Math.abs(nv[1])) > R - 0.5) { flash(`No room to stretch ${name} further on this grid. Try the ±10 grid.`); return; }
+    if (len(nv) < 0.2) { flash(`${name} is already very short.`); return; }
+    setVec(name, nv); draw();
+    const after = stats(), what = k === -1 ? `Flipped ${name}` : `Scaled ${name} by ${k === 0.5 ? "½" : f(k)}`;
+    flash(k === -1
+      ? `${what}: a · b went from ${f(before.d)} to ${f(after.d)}, so cos θ changed sign, from ${f(before.c)} to ${f(after.c)}. Flipping reverses the direction.`
+      : `${what}: a · b went from ${f(before.d)} to ${f(after.d)} and ‖${name}‖ from ${f(name === "a" ? before.na : before.nb)} to ${f(name === "a" ? after.na : after.nb)}, but cos θ stayed ${f(after.c)}.`);
+  }
+  function flash(t) { $("scaleMsg").textContent = t; $("scaleMsg").classList.add("show"); }
+  document.querySelectorAll("[data-scale]").forEach(btn => btn.addEventListener("click", () => {
+    const [n, k] = btn.dataset.scale.split(","); scale(n, +k);
+  }));
+
+  function syncKeyPick() {
+    document.querySelectorAll("#keyPick button").forEach(o => { const on = o.dataset.k === keyVec; o.classList.toggle("on", on); o.setAttribute("aria-pressed", on); });
+  }
+  document.querySelectorAll("#keyPick button").forEach(btn => btn.addEventListener("click", () => { keyVec = btn.dataset.k; syncKeyPick(); draw(); }));
+  cv.addEventListener("keydown", e => {
+    const k = e.key, step = $("snap").checked ? 1 : 0.1;
+    if (k === "a" || k === "A" || k === "b" || k === "B") { keyVec = k.toLowerCase(); syncKeyPick(); draw(); e.preventDefault(); return; }
+    if (k === "+" || k === "=") { scale(keyVec, 2); e.preventDefault(); return; }
+    if (k === "-" || k === "_") { scale(keyVec, 0.5); e.preventDefault(); return; }
+    const d = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, 1], ArrowDown: [0, -1] }[k];
+    if (!d) return;
+    e.preventDefault();
+    const v = keyVec === "a" ? a : b;
+    setVec(keyVec, [clampR(+(v[0] + d[0] * step).toFixed(1)), clampR(+(v[1] + d[1] * step).toFixed(1))]);
+    $("scaleMsg").classList.remove("show"); draw();
+  });
+
+  function setR(r) {
+    R = r; a = fitInside(a); b = fitInside(b);
+    document.querySelectorAll("#zoom button").forEach(o => { const on = +o.dataset.r === R; o.classList.toggle("on", on); o.setAttribute("aria-pressed", on); });
+    resize();
+  }
+  document.querySelectorAll("#zoom button").forEach(btn => btn.addEventListener("click", () => setR(+btn.dataset.r)));
+  document.querySelectorAll("[data-p]").forEach(btn => btn.addEventListener("click", () => {
+    const P = PRESETS[+btn.dataset.p];
+    a = [...P.a]; b = [...P.b]; $("pText").textContent = P.text; $("scaleMsg").classList.remove("show");
+    setR(P.R);
+  }));
+  for (const id of ["snap", "lock", "units"]) $(id).addEventListener("change", draw);
+  window.addEventListener("resize", resize);
+  if (window.matchMedia) window.matchMedia("(prefers-color-scheme: dark)").addEventListener?.("change", draw);
+  buildGauge();
+  resize();
+})();
+</script>
+</body>
+</html>
