@@ -1,0 +1,432 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hyperplane Classifier</title>
+<style>
+  :root {
+    --bg: #F5F7FA; --card: #FFFFFF; --ink: #1B2432; --muted: #8A94A6; --line: #D6DCE8; --grid: #E6EAF2;
+    --a: #F5A623; --b: #3B6CF6; --coral: #E8685A; --proj: #7B5CE0; --rem: #2EBF8F; --bad: #D64545; --code: #1B2432; --codeink: #E8ECF4;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #121821; --card: #1B2432; --ink: #E8ECF4; --muted: #9AA4B5; --line: #2E3A4D; --grid: #243044; --proj: #9B82F0; --code: #0D1219; }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.45 "Segoe UI", system-ui, -apple-system, sans-serif; }
+  header { padding: 18px 16px 6px; max-width: 1100px; margin: 0 auto; }
+  .back { display: inline-block; color: var(--muted); font-size: 13px; text-decoration: none; margin-bottom: 6px; }
+  .back:hover { color: var(--b); }
+  .kicker { color: var(--a); font-weight: 700; letter-spacing: .06em; text-transform: uppercase; font-size: 12px; }
+  h1 { margin: 2px 0 4px; font-size: 24px; }
+  header p { margin: 0; color: var(--muted); }
+  main { max-width: 1100px; margin: 0 auto; padding: 10px 16px 24px; display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(290px, 1fr); gap: 16px; }
+  @media (max-width: 820px) { main { grid-template-columns: 1fr; } }
+  @media (min-width: 821px) { main > .card:first-child { position: sticky; top: 12px; align-self: start; } }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 14px; min-width: 0; }
+  canvas { width: 100%; aspect-ratio: 1 / 1; display: block; touch-action: none; border-radius: 10px; }
+  .a { color: var(--a); } .b { color: var(--b); } .co { color: var(--coral); } .pj { color: var(--proj); } .rm { color: var(--rem); } .bad { color: var(--bad); } .muted { color: var(--muted); }
+  .big { font-size: 20px; font-weight: 700; margin: 0 0 8px; }
+  .item { display: grid; grid-template-columns: 1fr auto; gap: 2px 10px; align-items: baseline; padding: 7px 0; border-top: 1px solid var(--line); }
+  .item .name { font-weight: 700; }
+  .item .who { grid-column: 1 / 3; color: var(--muted); font-size: 13px; }
+  .item .val { font-weight: 800; font-size: 18px; text-align: right; }
+  .item .calc { grid-column: 1 / 3; font-family: Consolas, "Cascadia Mono", monospace; font-size: 13.5px; overflow-wrap: anywhere; }
+  .code { background: var(--code); color: var(--codeink); border-radius: 10px; padding: 10px 12px; font: 13.5px/1.5 Consolas, "Cascadia Mono", monospace; overflow-x: auto; white-space: pre; margin-top: 10px; }
+  .code .c { color: #8A94A6; } .code .n { color: #F5A623; }
+  .row { display: flex; flex-wrap: wrap; gap: 8px; margin: 8px 0; align-items: center; }
+  .grp { display: inline-flex; gap: 8px; align-items: center; }
+  .seg { display: inline-flex; border: 1px solid var(--line); border-radius: 9px; overflow: hidden; }
+  .seg button { border: 0; border-radius: 0; }
+  .seg button.on { background: var(--ink); color: var(--card); }
+  button { font: inherit; border: 1px solid var(--line); background: var(--bg); color: var(--ink); padding: 7px 11px; border-radius: 9px; cursor: pointer; }
+  button:hover { border-color: var(--b); }
+  button.primary { background: var(--b); border-color: var(--b); color: #fff; }
+  button:focus-visible, canvas:focus-visible, input:focus-visible, a:focus-visible { outline: 3px solid var(--b); outline-offset: 2px; }
+  label.chk { display: flex; gap: 6px; align-items: center; color: var(--muted); font-size: 14px; }
+  h2 { font-size: 15px; margin: 14px 0 4px; }
+  .banner { margin-top: 8px; padding: 9px 11px; border-radius: 9px; font-size: 14px; display: none; background: color-mix(in srgb, var(--proj) 12%, transparent); border: 1px solid color-mix(in srgb, var(--proj) 40%, transparent); }
+  .banner.show { display: block; }
+  .note { font-size: 14px; color: var(--muted); }
+  ul.try { margin: 4px 0 0; padding-left: 20px; font-size: 14px; }
+  ul.try li { margin: 3px 0; }
+  .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  footer { max-width: 1100px; margin: 0 auto; padding: 0 16px 22px; color: var(--muted); font-size: 13px; }
+
+  .params { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px 10px; margin: 6px 0; }
+  .params label { display: flex; justify-content: space-between; font-weight: 700; font-size: 13px; }
+  .params input[type=number], table.pts input { width: 100%; font: inherit; font-weight: 700; padding: 5px 6px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); color: var(--ink); }
+  .params input[type=range] { width: 100%; margin: 4px 0 0; }
+  .eqn { font-family: Consolas, "Cascadia Mono", monospace; font-size: 15px; font-weight: 700; margin: 4px 0 8px; overflow-wrap: anywhere; }
+  .tbl { max-height: 330px; overflow: auto; border: 1px solid var(--line); border-radius: 10px; }
+  table.pts { border-collapse: collapse; width: 100%; font-size: 13px; }
+  table.pts th { position: sticky; top: 0; background: var(--card); text-align: right; padding: 5px 5px; color: var(--muted); font-size: 12px; border-bottom: 1px solid var(--line); }
+  table.pts td { padding: 4px 5px; text-align: right; border-top: 1px solid var(--line); font-weight: 700; }
+  table.pts th:first-child, table.pts td:first-child { text-align: left; }
+  table.pts input { width: 3.9em; padding: 3px 4px; font-size: 13px; }
+  table.pts tr.how td { border-top: 0; padding-top: 0; text-align: left; font: 12.5px Consolas, "Cascadia Mono", monospace; color: var(--muted); font-weight: 400; overflow-wrap: anywhere; }
+  .side { font-weight: 800; }
+</style>
+</head>
+<body>
+<header>
+  <a class="back" href="index.html">← All interactives</a>
+  <div class="kicker">Eulerly · Lesson 6.5 · Try it yourself</div>
+  <h1>Hyperplane classifier</h1>
+  <p>One equation, <b>w · x + b = 0</b>, draws a line and splits the plane in two. The vector <b class="pj">w</b> stands at a right angle to the line and points into the <b class="b">+ side</b>. Plug any point in: the sign of its <b>score w · x + b</b> says which side it is on, and dividing by ‖w‖ turns the score into a real distance.</p>
+</header>
+
+<main>
+  <div class="card">
+    <canvas id="cv" tabindex="0" aria-label="Plane with the line w dot x plus b equals zero, the normal arrow w, and draggable points. Drag the tip of w to turn the line, or drag a point. Focus here and use the arrow keys to move the selected point; press W to select the tip of w." aria-describedby="live"></canvas>
+    <div class="row">
+      <button id="addCloud" class="primary">Add random cloud</button>
+      <button id="clearCloud">Clear cloud</button>
+      <button id="resetAll">Reset</button>
+    </div>
+    <div class="row">
+      <span class="grp"><span class="note">Grid:</span>
+      <span class="seg" id="zoom" role="group" aria-label="Grid size">
+        <button data-r="8" class="on" aria-pressed="true">±8</button>
+        <button data-r="16" aria-pressed="false">±16</button>
+        <button data-r="32" aria-pressed="false">±32</button>
+      </span></span>
+      <label class="chk"><input type="checkbox" id="snap" checked> snap to halves</label>
+    </div>
+    <h2>Same line, bigger numbers</h2>
+    <div class="row">
+      <button id="dbl">double w and b</button>
+      <button id="half">halve w and b</button>
+    </div>
+    <div class="banner" id="opMsg" role="status"></div>
+  </div>
+
+  <div class="card">
+    <div class="eqn" id="eqn"></div>
+    <div class="params" role="group" aria-label="Set w and b">
+      <div><label for="w1"><span class="pj">w₁</span></label><input type="number" id="w1" step="0.5" aria-label="w1"><input type="range" id="w1r" min="-10" max="10" step="0.5" aria-label="w1 slider"></div>
+      <div><label for="w2"><span class="pj">w₂</span></label><input type="number" id="w2" step="0.5" aria-label="w2"><input type="range" id="w2r" min="-10" max="10" step="0.5" aria-label="w2 slider"></div>
+      <div><label for="bb"><span>b</span></label><input type="number" id="bb" step="0.5" aria-label="b"><input type="range" id="bbr" min="-30" max="30" step="0.5" aria-label="b slider"></div>
+    </div>
+
+    <div class="item"><div class="name pj">‖w‖</div><div class="val pj" id="nwv"></div><div class="calc" id="nwc"></div></div>
+    <div class="item"><div class="name">Origin's distance |b| / ‖w‖</div><div class="val" id="odv"></div>
+      <div class="who">how far the line is from (0, 0); b alone is the score of the origin</div><div class="calc" id="odc"></div></div>
+    <div class="item"><div class="name"><span class="b">+ side</span> · <span class="co">− side</span> · on the line</div><div class="val" id="cntv"></div><div class="calc" id="cntc"></div></div>
+
+    <h2>Selected points <span class="note" id="selInfo"></span></h2>
+    <div class="note">Click a point to select or deselect it. Each selected point shows its score and its signed distance (negative on the − side). With more than four selected, only P and N keep their labels on the plane; the table lists them all.</div>
+    <div class="row">
+      <button id="selAll">select all</button><button id="selNone">select none</button><button id="selPN">only P and N</button>
+    </div>
+    <div class="tbl"><table class="pts" id="tbl"></table></div>
+
+    <div class="code" id="code"></div>
+
+    <h2>What to try</h2>
+    <ul class="try">
+      <li>Read the two default points: P scores +10 and sits 2 units on the blue side, N scores −5 and sits 1 unit on the coral side.</li>
+      <li>Press <b>double w and b</b>. The line does not move, the scores double, and the distances stay put: dividing by ‖w‖ undoes the stretch.</li>
+      <li>Drag the tip of <b class="pj">w</b>. The line turns so that it always stays at a right angle to the arrow.</li>
+      <li>Set b = 0. The line now passes through the origin, and the origin's score is 0.</li>
+      <li>Add a random cloud and count the points on each side. Which points are far from the line, and which are close?</li>
+    </ul>
+    <div class="sr" id="live" aria-live="polite"></div>
+  </div>
+</main>
+
+<footer>
+  From Eulerly lesson 6.5, <i>Hyperplanes: one equation that splits space</i>. In the plane a hyperplane is a line, in 3D it is a plane, and in n dimensions it is still the set where w · x + b = 0. The same one-line score tells you which side any point is on.
+  Watch next: 3Blue1Brown, <i>Essence of Linear Algebra</i>, chapter 9 (Dot products and duality).
+</footer>
+
+<script>
+(() => {
+  const cv = document.getElementById("cv"), ctx = cv.getContext("2d");
+  const $ = id => document.getElementById(id);
+  const css = v => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+  let W = 1, S = 1, R = 8, w = [3, 4], b = -10, anchor = [1.2, 1.6], pts, qn = 0, drag = null, downInfo = null, liveT = 0, tblKey = "";
+  const defaults = () => [{ id: "P", x: 4, y: 2, sel: true, main: true }, { id: "N", x: 1, y: 0.5, sel: true, main: true }];
+  pts = defaults();
+
+  const r2 = x => Math.round(x * 100) / 100;
+  const f = x => { const r = r2(x); return (Number.isInteger(r) ? String(Object.is(r, -0) ? 0 : r) : r.toFixed(2).replace(/0$/, "")).replace("-", "−"); };
+  const p = x => (r2(x) < 0 ? `(${f(x)})` : f(x));
+  const eq = (x, y) => (Math.abs(x - y) < 1e-9 ? "=" : "≈");
+  const nrm = () => Math.hypot(w[0], w[1]);
+  const score = q => w[0] * q.x + w[1] * q.y + b;
+  const X = x => W / 2 + x * S, Y = y => W / 2 - y * S;
+  const foot = q => { const s = score(q) / (nrm() ** 2); return [q.x - s * w[0], q.y - s * w[1]]; };
+  const F0 = () => { const k = -b / (nrm() ** 2); return [k * w[0], k * w[1]]; };
+  const gridStep = () => R / 8;
+
+  function fixAnchor() {              // keep the arrow's start point on the line, and in view
+    const n2 = nrm() ** 2, s = (w[0] * anchor[0] + w[1] * anchor[1] + b) / n2;
+    anchor = [anchor[0] - s * w[0], anchor[1] - s * w[1]];
+    if (Math.abs(anchor[0]) > R - 0.3 || Math.abs(anchor[1]) > R - 0.3) {
+      const u = [-w[1] / nrm(), w[0] / nrm()], F = F0();
+      let lo = -1e9, hi = 1e9;
+      for (let k = 0; k < 2; k++) {
+        if (Math.abs(u[k]) < 1e-9) { if (Math.abs(F[k]) > R) { lo = 1; hi = 0; } continue; }
+        const t1 = (-R - F[k]) / u[k], t2 = (R - F[k]) / u[k];
+        lo = Math.max(lo, Math.min(t1, t2)); hi = Math.min(hi, Math.max(t1, t2));
+      }
+      anchor = lo <= hi ? [F[0] + u[0] * (lo + hi) / 2, F[1] + u[1] * (lo + hi) / 2] : F;
+    }
+  }
+  const tip = () => [anchor[0] + w[0], anchor[1] + w[1]];
+
+  // ---------- drawing ----------
+  function resize() {
+    const dpr = window.devicePixelRatio || 1, wd = cv.clientWidth;
+    cv.width = wd * dpr; cv.height = wd * dpr; ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    W = wd; S = wd / (2 * R); draw();
+  }
+  function line(x0, y0, x1, y1, color, width, dash) {
+    ctx.strokeStyle = color; ctx.lineWidth = width; ctx.setLineDash(dash || []);
+    ctx.beginPath(); ctx.moveTo(X(x0), Y(y0)); ctx.lineTo(X(x1), Y(y1)); ctx.stroke(); ctx.setLineDash([]);
+  }
+  function arrow(from, to, color, width) {
+    const dx = X(to[0]) - X(from[0]), dy = Y(to[1]) - Y(from[1]), L = Math.hypot(dx, dy);
+    if (L < 3) return;
+    const ux = dx / L, uy = dy / L, h = Math.min(15, L * 0.4);
+    ctx.strokeStyle = color; ctx.lineWidth = width;
+    ctx.beginPath(); ctx.moveTo(X(from[0]), Y(from[1])); ctx.lineTo(X(to[0]) - ux * h * 0.8, Y(to[1]) - uy * h * 0.8); ctx.stroke();
+    ctx.fillStyle = color; ctx.beginPath(); ctx.moveTo(X(to[0]), Y(to[1]));
+    ctx.lineTo(X(to[0]) - ux * h - uy * h * 0.45, Y(to[1]) - uy * h + ux * h * 0.45);
+    ctx.lineTo(X(to[0]) - ux * h + uy * h * 0.45, Y(to[1]) - uy * h - ux * h * 0.45); ctx.closePath(); ctx.fill();
+  }
+  const poly = (ps, color) => { ctx.fillStyle = color; ctx.beginPath(); ps.forEach(([x, y], i) => (i ? ctx.lineTo(X(x), Y(y)) : ctx.moveTo(X(x), Y(y)))); ctx.closePath(); ctx.fill(); };
+  function text(t, px, py, color, size, bg) {
+    ctx.font = `700 ${size || 14}px Segoe UI, system-ui, sans-serif`;
+    const tw = ctx.measureText(t).width;
+    const x = Math.max(4, Math.min(W - tw - 4, px)), y = Math.max(14, Math.min(W - 6, py));
+    if (bg) { ctx.globalAlpha = 0.85; ctx.fillStyle = css("--card"); ctx.fillRect(x - 3, y - 13, tw + 6, 18); ctx.globalAlpha = 1; }
+    ctx.fillStyle = color; ctx.fillText(t, x, y);
+  }
+
+  function draw() {
+    const nw = nrm(), n = [w[0] / nw, w[1] / nw], u = [-n[1], n[0]], F = F0(), L = 4 * R;
+    const cB = css("--b"), cC = css("--coral"), cInk = css("--ink"), cMuted = css("--muted"), cPj = css("--proj");
+    ctx.clearRect(0, 0, W, W); ctx.fillStyle = css("--card"); ctx.fillRect(0, 0, W, W);
+    // the two sides
+    ctx.globalAlpha = 0.11;
+    poly([[F[0] - L * u[0], F[1] - L * u[1]], [F[0] + L * u[0], F[1] + L * u[1]], [F[0] + L * u[0] + L * n[0], F[1] + L * u[1] + L * n[1]], [F[0] - L * u[0] + L * n[0], F[1] - L * u[1] + L * n[1]]], cB);
+    poly([[F[0] - L * u[0], F[1] - L * u[1]], [F[0] + L * u[0], F[1] + L * u[1]], [F[0] + L * u[0] - L * n[0], F[1] + L * u[1] - L * n[1]], [F[0] - L * u[0] - L * n[0], F[1] - L * u[1] - L * n[1]]], cC);
+    ctx.globalAlpha = 1;
+    // grid
+    const gs = gridStep();
+    ctx.strokeStyle = css("--grid"); ctx.lineWidth = 1;
+    for (let i = -R; i <= R + 1e-9; i += gs) {
+      ctx.beginPath(); ctx.moveTo(X(i), 0); ctx.lineTo(X(i), W); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(0, Y(i)); ctx.lineTo(W, Y(i)); ctx.stroke();
+    }
+    ctx.strokeStyle = cMuted; ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.moveTo(0, Y(0)); ctx.lineTo(W, Y(0)); ctx.moveTo(X(0), 0); ctx.lineTo(X(0), W); ctx.stroke();
+    // side labels: put each at the canvas corner that is deepest in that side
+    const corners = [[-1, -1], [1, -1], [1, 1], [-1, 1]].map(([sx, sy]) => [sx * (R - 0.4), sy * (R - 0.4)]);
+    const sc = corners.map(c => w[0] * c[0] + w[1] * c[1] + b), hiI = sc.indexOf(Math.max(...sc)), loI = sc.indexOf(Math.min(...sc));
+    const cornerText = (c, t, color) => text(t, X(c[0]) + (c[0] > 0 ? -ctx.measureText(t).width - 4 : 4), Y(c[1]) + (c[1] > 0 ? 14 : -4), color, 14);
+    ctx.font = "700 14px Segoe UI, system-ui, sans-serif";
+    if (sc[hiI] > 0) cornerText(corners[hiI], "+ side: w·x + b > 0", cB);
+    if (sc[loI] < 0) cornerText(corners[loI], "− side: w·x + b < 0", cC);
+    // the line
+    line(F[0] - L * u[0], F[1] - L * u[1], F[0] + L * u[0], F[1] + L * u[1], cInk, 3);
+    // origin and its distance
+    const od = Math.abs(b) / nw;
+    if (od * S > 4) line(0, 0, F[0], F[1], cMuted, 2, [3, 4]);
+    ctx.fillStyle = cInk; ctx.beginPath(); ctx.arc(X(0), Y(0), 4.5, 0, 7); ctx.fill();
+    text(od * S > 4 ? `O: ${f(od)} from the line` : "O", X(0) + 8, Y(0) + 18, cMuted, 12.5, true);
+    // the points: perpendiculars, dots
+    pts.forEach(q => {
+      const s = score(q), ft = foot(q), col = s > 1e-9 ? cB : s < -1e-9 ? cC : cMuted;
+      if (Math.abs(s) * S / nw > 3) {
+        ctx.globalAlpha = q.sel ? 1 : 0.35; line(q.x, q.y, ft[0], ft[1], col, q.sel ? 2 : 1.2, [5, 4]); ctx.globalAlpha = 1;
+        if (q.sel) {   // right-angle marker at the foot
+          const sg = Math.sign(s), k = 9 / S, a1 = [-n[0] * sg, -n[1] * sg].map(c => c * k * -1), a2 = [u[0] * k, u[1] * k];
+          ctx.strokeStyle = cInk; ctx.lineWidth = 1.5; ctx.beginPath();
+          ctx.moveTo(X(ft[0] + a1[0]), Y(ft[1] + a1[1])); ctx.lineTo(X(ft[0] + a1[0] + a2[0]), Y(ft[1] + a1[1] + a2[1])); ctx.lineTo(X(ft[0] + a2[0]), Y(ft[1] + a2[1])); ctx.stroke();
+        }
+      }
+    });
+    pts.forEach(q => {
+      const s = score(q), col = s > 1e-9 ? cB : s < -1e-9 ? cC : cMuted, r = q.main ? 7 : 5;
+      ctx.fillStyle = col; ctx.strokeStyle = q.sel ? cInk : css("--card"); ctx.lineWidth = q.sel ? 2.5 : 1.5;
+      ctx.beginPath(); ctx.arc(X(q.x), Y(q.y), r, 0, 7); ctx.fill(); ctx.stroke();
+    });
+    // normal arrow w
+    arrow(anchor, tip(), cPj, 4.5);
+    ctx.fillStyle = css("--card"); ctx.strokeStyle = cPj; ctx.lineWidth = drag === "w" ? 3.5 : 2.5;
+    ctx.beginPath(); ctx.arc(X(tip()[0]), Y(tip()[1]), drag === "w" ? 9 : 7, 0, 7); ctx.fill(); ctx.stroke();
+    text("w", X(tip()[0]) + n[0] * 18 - 4, Y(tip()[1]) - n[1] * 18 + 5, cPj, 16);
+    // labels last so they sit on top
+    const manySel = pts.filter(q => q.sel).length > 4;   // too many labels would overlap: label only P and N then
+    pts.filter(q => q.sel && (!manySel || q.main)).forEach(q => {
+      const s = score(q), d = s / nw, t = `${q.id}: score ${f(s)}, dist ${f(d)}`;
+      ctx.font = "700 13px Segoe UI, system-ui, sans-serif";
+      const tw = ctx.measureText(t).width, right = X(q.x) + 12 + tw < W - 4;
+      text(t, right ? X(q.x) + 11 : X(q.x) - tw - 11, Y(q.y) - 9, s > 1e-9 ? cB : s < -1e-9 ? cC : cMuted, 13, true);
+    });
+    panel();
+  }
+
+  // ---------- panel ----------
+  function setInput(el, v) { if (document.activeElement !== el) el.value = Math.round(v * 1000) / 1000; }
+  function panel() {
+    const nw = nrm(), F = F0();
+    const term = (c, v, first) => { if (Math.abs(c) < 1e-12) return ""; const ab = f(Math.abs(c)), body = (Math.abs(Math.abs(c) - 1) < 1e-9 ? "" : ab) + v; return first ? (c < 0 ? "−" : "") + body : (c < 0 ? " − " : " + ") + body; };
+    const lhs = (term(w[0], "x", true) + (term(w[1], "y", !term(w[0], "x", true))) ) || "0";
+    $("eqn").innerHTML = `<span class="pj">${lhs}</span> ${b === 0 ? "" : (b < 0 ? "− " + f(-b) : "+ " + f(b))} = 0${b !== 0 ? `<br><span class="muted">that is, ${lhs} = ${f(-b)}</span>` : ""}`.replace(/\s+=/, " =");
+    setInput($("w1"), w[0]); setInput($("w2"), w[1]); setInput($("bb"), b);
+    $("w1r").value = w[0]; $("w2r").value = w[1]; $("bbr").value = b;
+    $("nwv").textContent = f(nw); $("nwc").textContent = `√(${p(w[0])}² + ${p(w[1])}²) = √${f(w[0] ** 2 + w[1] ** 2)} ${eq(nw, r2(nw))} ${f(nw)}`;
+    const od = Math.abs(b) / nw;
+    $("odv").textContent = f(od); $("odc").textContent = `|${f(b)}| / ${f(nw)} = ${f(Math.abs(b))} / ${f(nw)} ${eq(od, r2(od))} ${f(od)}` + (b === 0 ? "   the line passes through the origin" : "");
+    let pos = 0, neg = 0, on = 0;
+    pts.forEach(q => { const s = score(q); if (s > 1e-9) pos++; else if (s < -1e-9) neg++; else on++; });
+    $("cntv").innerHTML = `<span class="b">${pos}</span> · <span class="co">${neg}</span> · ${on}`;
+    $("cntc").textContent = `${pts.length} point${pts.length === 1 ? "" : "s"}: ${pos} with score > 0, ${neg} with score < 0, ${on} exactly on the line`;
+
+    // table of the selected points
+    const sel = pts.filter(q => q.sel), key = sel.map(q => q.id).join(",");
+    if (key !== tblKey) {
+      tblKey = key;
+      $("tbl").innerHTML = `<table class="pts"><thead><tr><th>point</th><th>x</th><th>y</th><th>score w·x+b</th><th>distance</th><th>side</th></tr></thead><tbody>` +
+        sel.map(q => `<tr data-id="${q.id}"><td>${q.id}</td><td><input type="number" step="0.5" data-k="x" aria-label="${q.id} x"></td><td><input type="number" step="0.5" data-k="y" aria-label="${q.id} y"></td><td class="sc"></td><td class="ds"></td><td class="sd side"></td></tr>` +
+        `<tr class="how" data-id="${q.id}"><td colspan="6"></td></tr>`).join("") + `</tbody></table>`;
+      $("tbl").querySelectorAll("input").forEach(inp => inp.addEventListener("input", () => {
+        const q = pts.find(z => z.id === inp.closest("tr").dataset.id), v = parseFloat(inp.value);
+        if (!q || !isFinite(v)) return; q[inp.dataset.k] = Math.max(-R, Math.min(R, v)); draw();
+      }));
+    }
+    $("selInfo").textContent = `(${sel.length} of ${pts.length})`;
+    sel.forEach(q => {
+      const tr = $("tbl").querySelector(`tr[data-id="${q.id}"]:not(.how)`), how = $("tbl").querySelector(`tr.how[data-id="${q.id}"] td`);
+      if (!tr) return;
+      const s = score(q), d = s / nw;
+      tr.querySelectorAll("input").forEach(inp => setInput(inp, q[inp.dataset.k]));
+      tr.querySelector(".sc").textContent = f(s); tr.querySelector(".ds").textContent = f(d);
+      const sd = tr.querySelector(".sd"); sd.textContent = s > 1e-9 ? "+" : s < -1e-9 ? "−" : "on line"; sd.style.color = css(s > 1e-9 ? "--b" : s < -1e-9 ? "--coral" : "--muted");
+      how.textContent = `${p(w[0])}×${p(q.x)} + ${p(w[1])}×${p(q.y)} + ${p(b)} = ${f(s)};  ${f(s)} / ${f(nw)} ${eq(d, r2(d))} ${f(d)}`;
+    });
+
+    const shown = sel.slice(0, 4), arr = k => "[" + shown.map(q => f(k(q))).join(", ") + (sel.length > 4 ? ", …" : "") + "]";
+    const nA = (v) => `<span class="n">${f(v)}</span>`;
+    $("code").innerHTML = (`w = np.array([${nA(w[0])}, ${nA(w[1])}]);  b = ${nA(b)}\n` +
+      (shown.length ? `X = np.array([${shown.map(q => `[${nA(q.x)}, ${nA(q.y)}]`).join(", ")}${sel.length > 4 ? ", ..." : ""}])  <span class="c"># one point per row</span>\n` : "") +
+      `scores = X @ w + b            <span class="c"># ${shown.length ? arr(score) : "select a point"}</span>\n` +
+      `dist = scores / norm(w)       <span class="c"># ${shown.length ? arr(q => score(q) / nw) : ""}</span>\n` +
+      `np.sign(scores)               <span class="c"># +1 blue side, -1 coral side</span>`).replaceAll("−", "-");
+
+    clearTimeout(liveT);
+    liveT = setTimeout(() => { $("live").textContent = `Line ${lhs} ${b < 0 ? "minus " + f(-b) : b > 0 ? "plus " + f(b) : ""} equals zero. Norm of w ${f(nw)}. ${pos} points on the plus side, ${neg} on the minus side.`; }, 350);
+  }
+
+  // ---------- interaction ----------
+  const clampR = v => Math.max(-R + 0.3, Math.min(R - 0.3, v));
+  const snapStep = () => ($("snap").checked ? 0.5 * (R / 8) : 0.01);
+  const sn = v => +(Math.round(v / snapStep()) * snapStep()).toFixed(3);
+  function toWorld(e) { const rect = cv.getBoundingClientRect(); return [(e.clientX - rect.left - W / 2) / S, (W / 2 - (e.clientY - rect.top)) / S]; }
+  function pick(e) {
+    const rect = cv.getBoundingClientRect(), px = e.clientX - rect.left, py = e.clientY - rect.top;
+    const reach = e.pointerType === "touch" ? 30 : 18;
+    const dw = Math.hypot(X(tip()[0]) - px, Y(tip()[1]) - py);
+    let best = null, bd = 1e9;
+    pts.forEach(q => { const dd = Math.hypot(X(q.x) - px, Y(q.y) - py); if (dd < bd) { bd = dd; best = q; } });
+    if (dw <= reach && dw <= bd) return "w";
+    return bd <= reach ? best : null;
+  }
+  function setW(world) {
+    const w0 = w.slice(), a0 = anchor.slice();
+    for (let k = 0; k < 8; k++) {   // the anchor slides along the new line, so let the tip settle on the pointer
+      const nwv = [sn(world[0] - anchor[0]), sn(world[1] - anchor[1])], len = Math.hypot(nwv[0], nwv[1]);
+      if (len < 0.3 || Math.abs(b) / len > R * 1.3) { w = w0; anchor = a0; return; }
+      w = nwv; fixAnchor();
+    }
+    $("opMsg").classList.remove("show"); draw();
+  }
+  cv.addEventListener("pointerdown", e => {
+    const hit = pick(e); if (!hit) return;
+    drag = hit; downInfo = { x: e.clientX, y: e.clientY, moved: false }; cv.setPointerCapture(e.pointerId);
+    if (hit === "w") setW(toWorld(e)); else draw();
+  });
+  cv.addEventListener("pointermove", e => {
+    if (!drag) { cv.style.cursor = pick(e) ? "grab" : "default"; return; }
+    if (!downInfo.moved && Math.hypot(e.clientX - downInfo.x, e.clientY - downInfo.y) > 4) downInfo.moved = true;
+    if (drag === "w") { setW(toWorld(e)); return; }
+    if (!downInfo.moved) return;
+    const wd = toWorld(e); drag.x = clampR(sn(wd[0])); drag.y = clampR(sn(wd[1])); draw();
+  });
+  function end() {
+    if (drag && drag !== "w" && downInfo && !downInfo.moved) { drag.sel = !drag.sel; tblKey = ""; }
+    drag = null; downInfo = null; draw();
+  }
+  cv.addEventListener("pointerup", end); cv.addEventListener("pointercancel", () => { drag = null; downInfo = null; draw(); });
+  let keyTarget = null;
+  cv.addEventListener("keydown", e => {
+    const d = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, 1], ArrowDown: [0, -1] }[e.key];
+    if (e.key === "w" || e.key === "W") { keyTarget = "w"; e.preventDefault(); return; }
+    if (e.key === "Tab") return;
+    if (!d) return;
+    e.preventDefault();
+    const st = $("snap").checked ? 0.5 * (R / 8) : 0.1;
+    if (keyTarget === "w" || !(pts.find(q => q.sel))) setW([tip()[0] + d[0] * st, tip()[1] + d[1] * st]);
+    else pts.filter(q => q.sel).forEach(q => { q.x = clampR(+(q.x + d[0] * st).toFixed(2)); q.y = clampR(+(q.y + d[1] * st).toFixed(2)); });
+    draw();
+  });
+  cv.addEventListener("focus", () => { keyTarget = null; });
+
+  function setWb(nw, nb) { w = nw; b = nb; fixAnchor(); }
+  $("w1").addEventListener("input", () => { const v = parseFloat($("w1").value); if (isFinite(v) && Math.hypot(v, w[1]) > 0.05) { setWb([v, w[1]], b); $("opMsg").classList.remove("show"); draw(); } });
+  $("w2").addEventListener("input", () => { const v = parseFloat($("w2").value); if (isFinite(v) && Math.hypot(w[0], v) > 0.05) { setWb([w[0], v], b); $("opMsg").classList.remove("show"); draw(); } });
+  $("bb").addEventListener("input", () => { const v = parseFloat($("bb").value); if (isFinite(v)) { setWb(w, v); $("opMsg").classList.remove("show"); draw(); } });
+  $("w1r").addEventListener("input", () => { const v = parseFloat($("w1r").value); if (Math.hypot(v, w[1]) > 0.05) { setWb([v, w[1]], b); $("opMsg").classList.remove("show"); draw(); } });
+  $("w2r").addEventListener("input", () => { const v = parseFloat($("w2r").value); if (Math.hypot(w[0], v) > 0.05) { setWb([w[0], v], b); $("opMsg").classList.remove("show"); draw(); } });
+  $("bbr").addEventListener("input", () => { setWb(w, parseFloat($("bbr").value)); $("opMsg").classList.remove("show"); draw(); });
+
+  function setR(r) {
+    R = r; S = W / (2 * R);
+    document.querySelectorAll("#zoom button").forEach(o => { const on = +o.dataset.r === R; o.classList.toggle("on", on); o.setAttribute("aria-pressed", on); });
+  }
+  document.querySelectorAll("#zoom button").forEach(btn => btn.addEventListener("click", () => {
+    setR(+btn.dataset.r); pts.forEach(q => { q.x = clampR(q.x); q.y = clampR(q.y); }); fixAnchor(); draw();
+  }));
+
+  function scale(k) {
+    const sel = pts.filter(q => q.sel).slice(0, 3), before = sel.map(q => [score(q), score(q) / nrm()]);
+    const oldW = w.slice(), oldB = b;
+    w = [w[0] * k, w[1] * k]; b = b * k;
+    if (nrm() < 0.3) { w = oldW; b = oldB; $("opMsg").textContent = "w is already very short."; $("opMsg").classList.add("show"); return; }
+    fixAnchor();
+    const tp = tip(); if (Math.abs(tp[0]) > R || Math.abs(tp[1]) > R) { const need = [8, 16, 32].find(r => r >= Math.max(Math.abs(tp[0]), Math.abs(tp[1])) + 0.5); if (need && need > R) setR(need); }
+    draw();
+    const lines = sel.map((q, i) => `${q.id}: score ${f(before[i][0])} → ${f(score(q))}, distance ${f(before[i][1])} → ${f(score(q) / nrm())}`);
+    $("opMsg").innerHTML = `${k === 2 ? "Doubled" : "Halved"} w and b: w = ${vecT(w)}, b = ${f(b)}. <b>The line did not move</b> (still ${$("eqn").querySelector(".muted") ? $("eqn").querySelector(".muted").textContent.replace("that is, ", "") : "the same line"}).` +
+      (lines.length ? `<br>${lines.join("<br>")}<br>The scores ${k === 2 ? "doubled" : "halved"}, the distances stayed put, because ‖w‖ ${k === 2 ? "doubled" : "halved"} too.` : "");
+    $("opMsg").classList.add("show");
+  }
+  const vecT = v => `(${f(v[0])}, ${f(v[1])})`;
+  $("dbl").addEventListener("click", () => scale(2));
+  $("half").addEventListener("click", () => scale(0.5));
+
+  $("addCloud").addEventListener("click", () => {
+    for (let i = 0; i < 12 && pts.length < 60; i++) {
+      qn++; pts.push({ id: "Q" + qn, x: +((Math.random() * 2 - 1) * (R - 1)).toFixed(1), y: +((Math.random() * 2 - 1) * (R - 1)).toFixed(1), sel: false });
+    }
+    draw();
+  });
+  $("clearCloud").addEventListener("click", () => { pts = pts.filter(q => q.main); tblKey = ""; draw(); });
+  $("resetAll").addEventListener("click", () => {
+    w = [3, 4]; b = -10; pts = defaults(); qn = 0; tblKey = ""; setR(8); anchor = F0(); fixAnchor(); $("opMsg").classList.remove("show"); draw();
+  });
+  $("selAll").addEventListener("click", () => { pts.forEach(q => (q.sel = true)); tblKey = ""; draw(); });
+  $("selNone").addEventListener("click", () => { pts.forEach(q => (q.sel = false)); tblKey = ""; draw(); });
+  $("selPN").addEventListener("click", () => { pts.forEach(q => (q.sel = !!q.main)); tblKey = ""; draw(); });
+  $("snap").addEventListener("change", draw);
+  window.addEventListener("resize", resize);
+  if (window.matchMedia) window.matchMedia("(prefers-color-scheme: dark)").addEventListener?.("change", draw);
+  resize();
+})();
+</script>
+</body>
+</html>

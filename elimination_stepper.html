@@ -1,0 +1,621 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Elimination Stepper</title>
+<style>
+  :root {
+    --bg: #F5F7FA; --card: #FFFFFF; --ink: #1B2432; --muted: #8A94A6; --line: #D6DCE8; --grid: #E6EAF2;
+    --a: #F5A623; --b: #3B6CF6; --proj: #7B5CE0; --rem: #2EBF8F; --bad: #D64545; --code: #1B2432; --codeink: #E8ECF4;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #121821; --card: #1B2432; --ink: #E8ECF4; --muted: #9AA4B5; --line: #2E3A4D; --grid: #243044; --proj: #9B82F0; --code: #0D1219; }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.45 "Segoe UI", system-ui, -apple-system, sans-serif; }
+  header { padding: 18px 16px 6px; max-width: 1100px; margin: 0 auto; }
+  .back { display: inline-block; color: var(--muted); font-size: 13px; text-decoration: none; margin-bottom: 6px; }
+  .back:hover { color: var(--b); }
+  .kicker { color: var(--a); font-weight: 700; letter-spacing: .06em; text-transform: uppercase; font-size: 12px; }
+  h1 { margin: 2px 0 4px; font-size: 24px; }
+  header p { margin: 0; color: var(--muted); }
+  main { max-width: 1100px; margin: 0 auto; padding: 10px 16px 24px; display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(290px, 1fr); gap: 16px; }
+  @media (max-width: 820px) { main { grid-template-columns: 1fr; } }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 14px; min-width: 0; }
+  .a { color: var(--a); } .b { color: var(--b); } .pj { color: var(--proj); } .rm { color: var(--rem); } .bad { color: var(--bad); } .muted { color: var(--muted); }
+  .code { background: var(--code); color: var(--codeink); border-radius: 10px; padding: 10px 12px; font: 13.5px/1.5 Consolas, "Cascadia Mono", monospace; overflow-x: auto; white-space: pre; margin-top: 10px; }
+  .code .c { color: #8A94A6; } .code .n { color: #F5A623; }
+  .row { display: flex; flex-wrap: wrap; gap: 8px; margin: 8px 0; align-items: center; }
+  .grp { display: inline-flex; gap: 8px; align-items: center; }
+  .seg { display: inline-flex; border: 1px solid var(--line); border-radius: 9px; overflow: hidden; }
+  .seg button { border: 0; border-radius: 0; }
+  .seg button.on { background: var(--ink); color: var(--card); }
+  button { font: inherit; border: 1px solid var(--line); background: var(--bg); color: var(--ink); padding: 7px 11px; border-radius: 9px; cursor: pointer; }
+  button:hover:not(:disabled) { border-color: var(--b); }
+  button:disabled { opacity: .45; cursor: default; }
+  button.primary { background: var(--b); border-color: var(--b); color: #fff; }
+  button:focus-visible, input:focus-visible, a:focus-visible { outline: 3px solid var(--b); outline-offset: 2px; }
+  label.chk { display: flex; gap: 6px; align-items: center; color: var(--muted); font-size: 14px; }
+  h2 { font-size: 15px; margin: 14px 0 4px; }
+  h2:first-child { margin-top: 0; }
+  .note { font-size: 14px; color: var(--muted); }
+  ul.try { margin: 4px 0 0; padding-left: 20px; font-size: 14px; }
+  ul.try li { margin: 3px 0; }
+  .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  footer { max-width: 1100px; margin: 0 auto; padding: 0 16px 22px; color: var(--muted); font-size: 13px; }
+  [hidden] { display: none !important; }
+
+  .mono { font-family: Consolas, "Cascadia Mono", monospace; }
+  .badges { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0; min-height: 26px; }
+  .badge { border-radius: 999px; padding: 2px 10px; font-size: 13px; font-weight: 700; border: 1px solid; }
+  .badge.ref { color: var(--rem); border-color: color-mix(in srgb, var(--rem) 55%, transparent); background: color-mix(in srgb, var(--rem) 12%, transparent); }
+  .badge.rk { color: var(--proj); border-color: color-mix(in srgb, var(--proj) 55%, transparent); background: color-mix(in srgb, var(--proj) 12%, transparent); }
+  .badge.st { color: var(--muted); border-color: var(--line); }
+  .mwrap { overflow-x: auto; padding: 4px 2px 8px; }
+  .mat { position: relative; display: inline-grid; font: 700 17px Consolas, "Cascadia Mono", monospace; }
+  .mat > div { display: flex; align-items: center; justify-content: center; min-width: 54px; height: 40px; padding: 0 6px; border-radius: 12px; white-space: nowrap; }
+  .mat .hd { height: 22px; font-size: 13px; color: var(--muted); font-weight: 600; font-family: "Segoe UI", system-ui, sans-serif; }
+  .mat .rl { min-width: 34px; justify-content: flex-start; color: var(--muted); font-size: 13px; font-family: "Segoe UI", system-ui, sans-serif; padding: 0 4px 0 0; }
+  .mat .bc { border-left: 2.5px solid var(--ink); border-radius: 0 12px 12px 0; margin-left: 6px; }
+  .mat .rowhl { background: color-mix(in srgb, var(--a) 20%, transparent); }
+  .mat .chv { color: var(--a); text-shadow: 0 0 0 var(--a); }
+  .mat .pivot { box-shadow: inset 0 0 0 3px var(--rem); border-radius: 14px; }
+  .mat .zero { color: var(--muted); font-weight: 500; }
+  svg.stair { position: absolute; left: 0; top: 0; pointer-events: none; overflow: visible; }
+  .opTitle { font-size: 20px; font-weight: 800; margin: 6px 0 2px; overflow-wrap: anywhere; }
+  .why { color: var(--ink); margin: 0 0 6px; }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 8px; }
+  .chip { border: 1px solid var(--line); border-radius: 9px; padding: 4px 8px; font: 13.5px Consolas, "Cascadia Mono", monospace; background: var(--bg); overflow-wrap: anywhere; }
+  .chip b { font-family: "Segoe UI", system-ui, sans-serif; color: var(--muted); margin-right: 6px; }
+  .result { margin: 8px 0 4px; padding: 10px 12px; border-radius: 10px; border: 1px solid; font-size: 14.5px; }
+  .result.ok { background: color-mix(in srgb, var(--rem) 13%, transparent); border-color: color-mix(in srgb, var(--rem) 45%, transparent); }
+  .result.many { background: color-mix(in srgb, var(--proj) 12%, transparent); border-color: color-mix(in srgb, var(--proj) 45%, transparent); }
+  .result.none { background: color-mix(in srgb, var(--bad) 12%, transparent); border-color: color-mix(in srgb, var(--bad) 45%, transparent); }
+  .result .ans { font: 800 18px Consolas, "Cascadia Mono", monospace; margin: 6px 0 2px; overflow-wrap: anywhere; }
+  .result .ln { font: 14px Consolas, "Cascadia Mono", monospace; margin: 2px 0; overflow-wrap: anywhere; }
+  .stepno { margin-left: auto; font-size: 13px; color: var(--muted); }
+  .sizes { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; margin: 4px 0 8px; }
+  .sizes .seg button { padding: 4px 11px; }
+  .aug { display: inline-grid; gap: 6px 6px; align-items: center; padding: 2px 0; }
+  .aug input { width: 100%; min-width: 0; font: 700 15px Consolas, "Cascadia Mono", monospace; text-align: center; padding: 6px 2px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); color: var(--ink); }
+  .aug input.err { border-color: var(--bad); background: color-mix(in srgb, var(--bad) 12%, transparent); }
+  .aug .hd { text-align: center; font-size: 13px; color: var(--muted); font-weight: 600; }
+  .aug .bar { border-left: 2.5px solid var(--ink); align-self: stretch; margin-left: 2px; }
+  .eqs { font: 14px/1.7 Consolas, "Cascadia Mono", monospace; overflow-wrap: anywhere; margin: 6px 0; }
+  .presets button { padding: 6px 10px; }
+</style>
+</head>
+<body>
+<header>
+  <a class="back" href="index.html">← All interactives</a>
+  <div class="kicker">Eulerly · Lessons 6.3 and 7.1–7.3 · Try it yourself</div>
+  <h1>Elimination stepper</h1>
+  <p>Row by row, watch a system of equations turn into a staircase. Each step does one row operation and shows its arithmetic, entry by entry. <b class="rm">Green rings</b> mark the pivots, the <b class="a">amber row</b> is the one that just changed, and at the end the page reads off the answer: one solution, infinitely many, or none.</p>
+</header>
+
+<main>
+  <div class="card">
+    <div class="row">
+      <button id="back">← Back</button>
+      <button id="next" class="primary">Next step →</button>
+      <button id="play">▶ Auto-play</button>
+      <button id="reset">Reset</button>
+      <span class="stepno" id="stepno"></span>
+    </div>
+    <div class="row">
+      <label class="chk"><input type="checkbox" id="pivotOn"> partial pivoting (swap the largest |entry| into the pivot place)</label>
+    </div>
+    <div class="badges" id="badges"></div>
+    <div class="mwrap"><div class="mat" id="mat" role="img" aria-label="The augmented matrix"></div></div>
+    <div class="opTitle" id="opTitle"></div>
+    <p class="why" id="why"></p>
+    <div class="chips" id="calc"></div>
+    <div class="row" id="refRow" hidden>
+      <button id="toRref" class="primary">Continue to RREF</button>
+      <span class="note" id="refHint">Scale each pivot to 1 and clear the entries above it. Or press Next step to solve by back substitution.</span>
+    </div>
+    <div class="result ok" id="result" hidden></div>
+    <div class="sr" id="live" aria-live="polite"></div>
+  </div>
+
+  <div class="card">
+    <h2>Your system [A | b]</h2>
+    <div class="sizes">
+      <span class="grp"><span class="note">Equations:</span><span class="seg" id="szM"><button data-d="-1" aria-label="Fewer equations">−</button><button data-d="1" aria-label="More equations">+</button></span><b id="mN"></b></span>
+      <span class="grp"><span class="note">Unknowns:</span><span class="seg" id="szN"><button data-d="-1" aria-label="Fewer unknowns">−</button><button data-d="1" aria-label="More unknowns">+</button></span><b id="nN"></b></span>
+    </div>
+    <div id="editor"></div>
+    <div class="eqs" id="eqs"></div>
+    <div class="row">
+      <span class="grp"><span class="note">Unknowns named:</span>
+      <span class="seg" id="vm" role="group" aria-label="Variable names">
+        <button data-v="xyz" class="on" aria-pressed="true">x, y, z</button>
+        <button data-v="sub" aria-pressed="false">x₁, x₂, x₃</button>
+      </span></span>
+      <label class="chk"><input type="checkbox" id="fl"> float arithmetic (what NumPy does)</label>
+    </div>
+    <div class="note" id="mode"></div>
+
+    <h2>Presets</h2>
+    <div class="row presets" id="presets"></div>
+    <div class="note" id="pText">Pick a system, then press Next step.</div>
+
+    <div class="code" id="code"></div>
+
+    <h2>What to try</h2>
+    <ul class="try">
+      <li>Run the <b>6.3 system</b> to the end. Without pivoting the first operation is R3 → R3 − 2·R1, and the answer is (5, 3, −2).</li>
+      <li>Switch on <b>partial pivoting</b> and run it again. The steps change (a swap appears) but the answer does not.</li>
+      <li>Run <b>Rank 2</b>: the last row becomes 0 = 0, so z is free. Now run <b>Rank 2 with 17</b>: the same left side, but the last row says 0 = 1.</li>
+      <li>Press <b>Continue to RREF</b> on the 7.3 example and compare with [[1, 0, −1 | −2], [0, 1, 2 | 3]].</li>
+      <li>Run the <b>Tiny pivot demo</b> with pivoting off (x comes out 0, which is wrong), then switch pivoting on (x = 1).</li>
+    </ul>
+  </div>
+</main>
+
+<footer>
+  From Eulerly lessons 6.3 and 7.1 to 7.3, <i>Gaussian elimination, row echelon form and rank</i>. Three row operations (swap, scale, add a multiple of one row to another) never change the solutions of a system, so we can use them to reach a staircase that is easy to read. Rank is the number of pivots.
+  Watch next: 3Blue1Brown, <i>Essence of Linear Algebra</i>, chapter 7 (Inverse matrices, column space and null space).
+</footer>
+
+<script>
+(() => {
+  const $ = id => document.getElementById(id);
+  const SUB = ["₀", "₁", "₂", "₃", "₄", "₅"];
+
+  // ---------- exact fractions (BigInt) ----------
+  const gcd = (a, b) => { a = a < 0n ? -a : a; b = b < 0n ? -b : b; while (b) [a, b] = [b, a % b]; return a; };
+  class Fr {
+    constructor(n, d = 1n) { if (d < 0n) { n = -n; d = -d; } const g = gcd(n, d) || 1n; this.n = n / g; this.d = d / g; }
+  }
+  function parsePart(s) {                       // "12.5", "-3", "1e-20" -> Fr, or null
+    const m = /^([+-]?)(\d*)\.?(\d*)(?:e([+-]?\d+))?$/i.exec(s);
+    if (!m || (m[2] === "" && m[3] === "")) return null;
+    const frac = m[3] || "", ex = m[4] ? parseInt(m[4], 10) : 0;
+    let n = BigInt((m[2] || "0") + frac), d = 10n ** BigInt(frac.length);
+    if (ex >= 0) n *= 10n ** BigInt(ex); else d *= 10n ** BigInt(-ex);
+    return new Fr(m[1] === "-" ? -n : n, d);
+  }
+  const clean = s => String(s).replace(/−/g, "-").replace(/\s+/g, "");
+  function splitFrac(s) { const t = clean(s), i = t.indexOf("/"); return i < 0 ? [t] : [t.slice(0, i), t.slice(i + 1)]; }
+  const frStr = a => (a.d === 1n ? String(a.n) : `${a.n}/${a.d}`).replace("-", "−");
+  const FRO = {
+    name: "exact",
+    from(s) { const [p, q] = splitFrac(s), x = parsePart(p); if (!x) return null; if (q === undefined) return x; const y = parsePart(q); if (!y || y.n === 0n) return null; return new Fr(x.n * y.d, x.d * y.n); },
+    zero: new Fr(0n), one: new Fr(1n),
+    add: (a, b) => new Fr(a.n * b.d + b.n * a.d, a.d * b.d), sub: (a, b) => new Fr(a.n * b.d - b.n * a.d, a.d * b.d),
+    mul: (a, b) => new Fr(a.n * b.n, a.d * b.d), div: (a, b) => new Fr(a.n * b.d, a.d * b.n),
+    neg: a => new Fr(-a.n, a.d), isZero: a => a.n === 0n, isOne: a => a.n === 1n && a.d === 1n, isNeg: a => a.n < 0n,
+    cmpAbs: (a, b) => { const x = (a.n < 0n ? -a.n : a.n) * b.d, y = (b.n < 0n ? -b.n : b.n) * a.d; return x > y ? 1 : x < y ? -1 : 0; },
+    fmt: frStr, num: a => Number(a.n) / Number(a.d), isInt: a => a.d === 1n,
+  };
+  // ---------- real JS floats ----------
+  function flStr(x) {
+    if (x === 0) return "0"; if (!isFinite(x)) return String(x);
+    const ax = Math.abs(x); let s;
+    if (ax >= 1e15 || ax < 1e-4) { s = x.toExponential(); if (s.length > 12) s = x.toExponential(6).replace(/\.?0+e/, "e"); s = s.replace("e+", "e"); }
+    else s = String(parseFloat(x.toPrecision(10)));
+    return s.replace(/^-/, "−");
+  }
+  const FLO = {
+    name: "float",
+    from(s) { const [p, q] = splitFrac(s); if (!/^[+-]?(\d+\.?\d*|\.\d+)(e[+-]?\d+)?$/i.test(p)) return null; const x = Number(p); if (q === undefined) return x; if (!/^[+-]?(\d+\.?\d*|\.\d+)(e[+-]?\d+)?$/i.test(q) || Number(q) === 0) return null; return x / Number(q); },
+    zero: 0, one: 1, add: (a, b) => a + b, sub: (a, b) => a - b, mul: (a, b) => a * b, div: (a, b) => a / b, neg: a => -a,
+    isZero: a => a === 0, isOne: a => a === 1, isNeg: a => a < 0, cmpAbs: (a, b) => Math.abs(a) > Math.abs(b) ? 1 : Math.abs(a) < Math.abs(b) ? -1 : 0,
+    fmt: flStr, num: a => a, isInt: a => Number.isInteger(a),
+  };
+
+  // ---------- state ----------
+  const st = { m: 3, n: 3, cells: [], vm: "xyz", pivotOn: false, float: false, idx: 0, branch: null, trace: null, timer: null, err: null };
+  const nm = j => (st.vm === "xyz" ? ["x", "y", "z", "w"][j] : "x" + SUB[j + 1]);
+  const ops = () => (st.float ? FLO : FRO);
+  const paren = s => (s.startsWith("−") ? `(${s})` : s);
+  const wrapFr = s => (s.includes("/") ? `(${s})` : s);
+
+  const PRESETS = [
+    { k: "6.3 system", m: 3, n: 3, c: [["1", "1", "1", "6"], ["0", "2", "5", "−4"], ["2", "5", "−1", "27"]], vm: "xyz", piv: false, fl: false, text: "The lesson 6.3 system: x + y + z = 6, 2y + 5z = −4, 2x + 5y − z = 27. The answer is (5, 3, −2)." },
+    { k: "Needs a swap", m: 3, n: 3, c: [["0", "2", "1", "7"], ["1", "1", "1", "6"], ["2", "1", "−1", "1"]], vm: "xyz", piv: false, fl: false, text: "The first equation has no x, so the first pivot has to come from another row: a swap. The answer is (1, 2, 3)." },
+    { k: "Rank 2 (b = 16)", m: 3, n: 3, c: [["1", "1", "1", "6"], ["1", "2", "3", "10"], ["2", "3", "4", "16"]], vm: "xyz", piv: false, fl: false, text: "Row 3 is row 1 plus row 2, so it carries no new information: the last row becomes 0 = 0 and z is free." },
+    { k: "Rank 2 (b = 17)", m: 3, n: 3, c: [["1", "1", "1", "6"], ["1", "2", "3", "10"], ["2", "3", "4", "17"]], vm: "xyz", piv: false, fl: false, text: "Same left side, but the right side of row 3 is 17. The same collapse now leaves 0 = 1: no solution." },
+    { k: "7.3 example (2 × 3)", m: 2, n: 3, c: [["1", "2", "3", "4"], ["5", "6", "7", "8"]], vm: "sub", piv: false, fl: false, text: "Two equations, three unknowns: x₁ + 2x₂ + 3x₃ = 4 and 5x₁ + 6x₂ + 7x₃ = 8. Its RREF is [[1, 0, −1 | −2], [0, 1, 2 | 3]]." },
+    { k: "Tiny pivot demo", m: 2, n: 2, c: [["1e-20", "1", "1"], ["1", "1", "2"]], vm: "xyz", piv: false, fl: true, text: "1e-20·x + y = 1 and x + y = 2, in real floating point. The true answer is x ≈ 1, y ≈ 1. With pivoting off, the huge multiplier 1e20 swamps the other numbers; switch pivoting on and compare." },
+  ];
+
+  // ---------- reading the editor ----------
+  function readMatrix() {
+    const O = ops(), M = [];
+    for (let i = 0; i < st.m; i++) { M.push([]); for (let j = 0; j <= st.n; j++) {
+      const v = O.from(st.cells[i][j]); if (v === null) return null; M[i].push(v);
+    } }
+    return M;
+  }
+  const cp = M => M.map(r => r.slice());
+
+  // ---------- text helpers ----------
+  const coefStr = (O, a) => wrapFr(O.fmt(O.isNeg(a) ? O.neg(a) : a));
+  function eqText(O, M, r) {
+    const n = M[0].length - 1; let s = "";
+    for (let j = 0; j < n; j++) {
+      const a = M[r][j]; if (O.isZero(a)) continue;
+      const mag = O.isNeg(a) ? O.neg(a) : a, body = (O.isOne(mag) ? "" : O.fmt(mag)) + nm(j);
+      s += s === "" ? (O.isNeg(a) ? "−" : "") + body : (O.isNeg(a) ? " − " : " + ") + body;
+    }
+    return `${s || "0"} = ${O.fmt(M[r][n])}`;
+  }
+  // linear forms (constant + coefficients on free variables)
+  function mkForms(O) {
+    const keys = F => Object.keys(F.t).map(Number).sort((a, b) => a - b);
+    return {
+      cst: v => ({ c: v, t: {} }), vr: j => ({ c: O.zero, t: { [j]: O.one } }),
+      sub(F, G) { const t = {}; new Set([...keys(F), ...keys(G)]).forEach(j => { t[j] = O.sub(F.t[j] ?? O.zero, G.t[j] ?? O.zero); }); return { c: O.sub(F.c, G.c), t }; },
+      scale(F, k) { const t = {}; keys(F).forEach(j => { t[j] = O.mul(F.t[j], k); }); return { c: O.mul(F.c, k), t }; },
+      div(F, k) { const t = {}; keys(F).forEach(j => { t[j] = O.div(F.t[j], k); }); return { c: O.div(F.c, k), t }; },
+      str(F) {
+        let s = ""; const ks = keys(F).filter(j => !O.isZero(F.t[j]));
+        if (!O.isZero(F.c) || ks.length === 0) s = O.fmt(F.c);
+        ks.forEach(j => { const a = F.t[j], mag = O.isNeg(a) ? O.neg(a) : a, body = (O.isOne(mag) ? "" : wrapFr(O.fmt(mag)) + "·") + nm(j);
+          s += s === "" ? (O.isNeg(a) ? "−" : "") + body : (O.isNeg(a) ? " − " : " + ") + body; });
+        return s;
+      },
+      numeric: F => keys(F).every(j => O.isZero(F.t[j])),
+    };
+  }
+
+  // ---------- the trace ----------
+  function forward(M0, O, pivotOn) {
+    const m = M0.length, n = M0[0].length - 1, steps = [], pivots = []; let M = cp(M0);
+    const snap = o => steps.push(Object.assign({ calc: [], changed: [], phase: "fwd" }, o, { M: cp(M), pivots: pivots.map(q => q.slice()) }));
+    snap({ kind: "start", title: "Start", why: "Your system as an augmented matrix [A | b]. The goal is a staircase: a pivot in each row, further to the right as you go down, with zeros below every pivot. Press Next step." });
+    let r = 0;
+    for (let c = 0; c < n && r < m; c++) {
+      let p = -1;
+      if (pivotOn) { for (let i = r; i < m; i++) { if (O.isZero(M[i][c])) continue; if (p < 0 || O.cmpAbs(M[i][c], M[p][c]) > 0) p = i; } }
+      else { for (let i = r; i < m; i++) if (!O.isZero(M[i][c])) { p = i; break; } }
+      if (p < 0) { snap({ kind: "nopivot", title: `Column ${nm(c)}: no pivot`, why: `Every entry from R${r + 1} down in this column is 0, so there is nothing to use as a pivot here. ${nm(c)} will be a free variable. Move on to the next column, staying on R${r + 1}.` }); continue; }
+      pivots.push([r, c]); let did = false;
+      if (p !== r) {
+        [M[r], M[p]] = [M[p], M[r]]; did = true;
+        snap({ kind: "swap", title: `swap R${r + 1} ↔ R${p + 1}`, changed: [r, p], why: pivotOn
+          ? `Partial pivoting: the entry with the largest absolute value in column ${nm(c)} (from R${r + 1} down) is ${O.fmt(M[r][c])}. Bring it up to be the pivot.`
+          : `The entry in R${r + 1} is 0, so use the first nonzero entry in column ${nm(c)}, which is in R${p + 1}. Swap those rows.` });
+      }
+      for (let i = r + 1; i < m; i++) {
+        if (O.isZero(M[i][c])) continue;
+        const f = O.div(M[i][c], M[r][c]), neg = O.isNeg(f), cs = coefStr(O, f), pv = O.fmt(M[r][c]), below = O.fmt(M[i][c]);
+        const calc = [];
+        for (let j = c; j <= n; j++) {
+          const old = M[i][j], pj = M[r][j]; let nv = O.sub(old, O.mul(f, pj)); if (j === c) nv = O.zero;
+          calc.push({ label: j < n ? nm(j) : "b", text: `${O.fmt(old)} ${neg ? "+" : "−"} ${cs} × ${paren(O.fmt(pj))} = ${O.fmt(nv)}` });
+          M[i][j] = nv;
+        }
+        did = true;
+        snap({ kind: "elim", title: `R${i + 1} → R${i + 1} ${neg ? "+" : "−"} ${O.isOne(neg ? O.neg(f) : f) ? "" : cs + "·"}R${r + 1}`, changed: [i], calc,
+          why: `The pivot ${pv} sits in R${r + 1}. To clear the ${below} below it, ${neg ? "add" : "subtract"} ${cs} times R${r + 1} ${neg ? "to" : "from"} R${i + 1}${neg ? " (the multiplier is negative, so this is an addition)" : ""}.` });
+      }
+      if (!did) snap({ kind: "pivot", title: `Column ${nm(c)}: pivot is ${O.fmt(M[r][c])} in R${r + 1}`, why: "Nothing below it needs clearing, so no row operation is needed. The pivot is ringed." });
+      r++;
+    }
+    return { steps, M, pivots };
+  }
+  function rrefSteps(M0, pivots0, O) {
+    const steps = [], n = M0[0].length - 1, pivots = pivots0.map(q => q.slice()); let M = cp(M0);
+    const snap = o => steps.push(Object.assign({ calc: [], changed: [], phase: "rref" }, o, { M: cp(M), pivots: pivots.map(q => q.slice()) }));
+    for (let k = pivots.length - 1; k >= 0; k--) {
+      const [r, c] = pivots[k];
+      if (!O.isOne(M[r][c])) {
+        const pv = M[r][c], calc = [];
+        for (let j = c; j <= n; j++) { const old = M[r][j]; let nv = O.div(old, pv); if (j === c) nv = O.one; calc.push({ label: j < n ? nm(j) : "b", text: `${O.fmt(old)} ÷ ${paren(O.fmt(pv))} = ${O.fmt(nv)}` }); M[r][j] = nv; }
+        snap({ kind: "scale", title: `R${r + 1} → R${r + 1} ÷ ${paren(O.fmt(pv))}`, changed: [r], calc, why: `Divide R${r + 1} by its pivot ${O.fmt(pv)} so the pivot becomes 1.` });
+      }
+      for (let i = r - 1; i >= 0; i--) {
+        if (O.isZero(M[i][c])) continue;
+        const f = M[i][c], neg = O.isNeg(f), cs = coefStr(O, f), calc = [];
+        for (let j = c; j <= n; j++) { const old = M[i][j]; let nv = O.sub(old, O.mul(f, M[r][j])); if (j === c) nv = O.zero; calc.push({ label: j < n ? nm(j) : "b", text: `${O.fmt(old)} ${neg ? "+" : "−"} ${cs} × ${paren(O.fmt(M[r][j]))} = ${O.fmt(nv)}` }); M[i][j] = nv; }
+        snap({ kind: "elim", title: `R${i + 1} → R${i + 1} ${neg ? "+" : "−"} ${O.isOne(neg ? O.neg(f) : f) ? "" : cs + "·"}R${r + 1}`, changed: [i], calc, why: `Clear the ${O.fmt(f)} above the pivot in column ${nm(c)}: ${neg ? "add" : "subtract"} ${cs} times R${r + 1} ${neg ? "to" : "from"} R${i + 1}.` });
+      }
+    }
+    return { steps, M };
+  }
+  function analyze(M, pivots, O) {
+    const n = M[0].length - 1;
+    for (let i = 0; i < M.length; i++) {
+      let allZero = true; for (let j = 0; j < n; j++) if (!O.isZero(M[i][j])) allZero = false;
+      if (allZero && !O.isZero(M[i][n])) return { kind: "none", bad: i, rank: pivots.length };
+    }
+    const pc = new Set(pivots.map(q => q[1])), free = []; for (let j = 0; j < n; j++) if (!pc.has(j)) free.push(j);
+    let zeroRows = 0; for (let i = pivots.length; i < M.length; i++) zeroRows++;
+    return { kind: pivots.length === n ? "unique" : "free", rank: pivots.length, free, zeroRows };
+  }
+  function backsub(M, pivots, O, free) {
+    const F = mkForms(O), n = M[0].length - 1, X = new Array(n).fill(null), steps = [], solved = [];
+    free.forEach(j => { X[j] = F.vr(j); });
+    const snap = o => steps.push(Object.assign({ calc: [], changed: [], phase: "back" }, o, { M: cp(M), pivots: pivots.map(q => q.slice()), solved: solved.slice() }));
+    if (free.length) { solved.push(...free.map(j => `${nm(j)} is free`)); snap({ kind: "backfree", title: `Free variable${free.length > 1 ? "s" : ""}: ${free.map(nm).join(", ")}`, why: `${free.length > 1 ? "These columns have" : "This column has"} no pivot, so ${free.length > 1 ? "these unknowns can" : "this unknown can"} take any value. Keep ${free.length > 1 ? "them" : "it"} as ${free.length > 1 ? "letters" : "a letter"} and solve for the pivot variables in terms of ${free.length > 1 ? "them" : "it"}.` }); }
+    for (let k = pivots.length - 1; k >= 0; k--) {
+      const [r, c] = pivots[k], pv = M[r][c]; let rhs = F.cst(M[r][n]); const terms = [];
+      for (let j = c + 1; j < n; j++) {
+        const a = M[r][j]; if (O.isZero(a)) continue;
+        rhs = F.sub(rhs, F.scale(X[j], a));
+        const neg = O.isNeg(a), mag = neg ? O.neg(a) : a, xs = F.str(X[j]), w = /[ ]|^−/.test(xs) ? `(${xs})` : xs;
+        terms.push(`${neg ? "+" : "−"} ${O.isOne(mag) ? "" : wrapFr(O.fmt(mag)) + "·"}${w}`);
+      }
+      X[c] = F.div(rhs, pv);
+      const top = `${O.fmt(M[r][n])}${terms.length ? " " + terms.join(" ") : ""}`;
+      const sub = O.isOne(pv) ? top : (terms.length ? `(${top})` : top) + ` ÷ ${paren(O.fmt(pv))}`;
+      solved.push(`${nm(c)} = ${F.str(X[c])}`);
+      snap({ kind: "back", title: `Back substitution: R${r + 1} gives ${nm(c)}`, changed: [r], final: k === 0,
+        why: `R${r + 1} says ${eqText(O, M, r)}. Solve it for ${nm(c)}, using the values already found.`,
+        calc: [{ label: "", text: `${nm(c)} = ${sub}${sub === F.str(X[c]) ? "" : " = " + F.str(X[c])}` }] });
+    }
+    return { steps, X, F };
+  }
+  const answerLines = (X, F) => X.map((x, j) => (F.str(x) === nm(j) ? `${nm(j)} is free (any value)` : `${nm(j)} = ${F.str(x)}`));
+
+  function build() {
+    st.err = null; st.trace = null;
+    const O = ops(), M0 = readMatrix();
+    if (!M0) { st.err = "Enter numbers such as 3, −2, 0.5 or 1/2."; return; }
+    const fw = forward(M0, O, st.pivotOn), refIdx = fw.steps.length - 1, info = analyze(fw.M, fw.pivots, O);
+    const rr = rrefSteps(fw.M, fw.pivots, O), rrefM = rr.steps.length ? rr.steps[rr.steps.length - 1].M : fw.M;
+    const back = info.kind === "none" ? null : backsub(fw.M, fw.pivots, O, info.free);
+    const rrefSol = info.kind === "none" ? null : backsub(rrefM, fw.pivots, O, info.free);
+    st.trace = { M0, fwd: fw.steps, refIdx, info, rref: rr.steps, rrefM, back, rrefSol, refM: fw.M, pivots: fw.pivots };
+  }
+  const seq = () => { const t = st.trace; return t.fwd.concat(st.branch === "back" && t.back ? t.back.steps : st.branch === "rref" ? t.rref : []); };
+
+  // exact answer as a decimal (used to show what floats got wrong)
+  function decimal(a, digits) {
+    let n = a.n, neg = n < 0n; if (neg) n = -n; const ip = n / a.d; let rem = n % a.d, s = "";
+    for (let i = 0; i < digits; i++) { rem *= 10n; s += String(rem / a.d); rem %= a.d; }
+    return (neg ? "−" : "") + ip + "." + s;
+  }
+
+  // ---------- rendering ----------
+  function renderEditor() {
+    const wcols = st.n + 1;
+    let h = `<div class="aug" style="grid-template-columns:repeat(${st.n},minmax(0,64px)) 8px minmax(0,64px)">`;
+    for (let j = 0; j < st.n; j++) h += `<div class="hd">${nm(j)}</div>`;
+    h += `<div></div><div class="hd">b</div>`;
+    for (let i = 0; i < st.m; i++) {
+      for (let j = 0; j < st.n; j++) h += `<input data-i="${i}" data-j="${j}" value="${st.cells[i][j]}" inputmode="text" aria-label="Row ${i + 1}, coefficient of ${nm(j)}" autocomplete="off">`;
+      h += `<div class="bar"></div><input data-i="${i}" data-j="${st.n}" value="${st.cells[i][st.n]}" inputmode="text" aria-label="Row ${i + 1}, right-hand side" autocomplete="off">`;
+    }
+    h += `</div>`; void wcols;
+    $("editor").innerHTML = h;
+    $("editor").querySelectorAll("input").forEach(inp => inp.addEventListener("input", () => {
+      st.cells[+inp.dataset.i][+inp.dataset.j] = inp.value; $("pText").textContent = "Custom system."; hardReset(false);
+    }));
+    $("mN").textContent = st.m; $("nN").textContent = st.n;
+  }
+  function markErrors() {
+    const O = ops();
+    $("editor").querySelectorAll("input").forEach(inp => inp.classList.toggle("err", O.from(st.cells[+inp.dataset.i][+inp.dataset.j]) === null));
+  }
+  function systemText(O, M) {
+    return M.map((row, i) => eqText(O, M, i)).join("\n");
+  }
+  function renderStatic() {
+    const O = ops(), M = readMatrix();
+    $("eqs").textContent = M ? systemText(O, M) : "…";
+    $("eqs").style.whiteSpace = "pre-wrap";
+    $("mode").textContent = st.float ? "Arithmetic: real 64-bit floats, exactly as in NumPy. A pivot is skipped only if it is exactly 0." : "Arithmetic: exact fractions, so 1/3 stays 1/3. Switch on float arithmetic to see rounding.";
+    document.querySelectorAll("#vm button").forEach(b => { const on = b.dataset.v === st.vm; b.classList.toggle("on", on); b.setAttribute("aria-pressed", on); });
+    $("pivotOn").checked = st.pivotOn; $("fl").checked = st.float;
+    $("szM").children[0].disabled = st.m <= 2; $("szM").children[1].disabled = st.m >= 4;
+    $("szN").children[0].disabled = st.n <= 2; $("szN").children[1].disabled = st.n >= 4;
+    markErrors();
+  }
+
+  function render() {
+    renderStatic();
+    const O = ops(), t = st.trace;
+    if (!t) {
+      $("mat").innerHTML = ""; $("badges").innerHTML = ""; $("opTitle").textContent = "Check the numbers"; $("why").textContent = st.err || "";
+      $("calc").innerHTML = ""; $("result").hidden = true; $("refRow").hidden = true; $("stepno").textContent = "";
+      ["back", "next", "play", "reset"].forEach(i => { $(i).disabled = true; }); $("code").textContent = "";
+      return;
+    }
+    const sq = seq(), cur = sq[st.idx], prev = st.idx > 0 ? sq[st.idx - 1].M : null, n = st.trace.M0[0].length - 1, m = cur.M.length;
+    const atRef = st.idx >= t.refIdx;
+    // matrix
+    const piv = new Set(cur.pivots.map(q => q[0] + "," + q[1])), hl = new Set(cur.changed);
+    let h = `<div></div>`;
+    for (let j = 0; j < n; j++) h += `<div class="hd">${nm(j)}</div>`;
+    h += `<div class="hd bc" style="border-left-color:transparent">b</div>`;
+    for (let i = 0; i < m; i++) {
+      h += `<div class="rl">R${i + 1}</div>`;
+      for (let j = 0; j <= n; j++) {
+        const v = cur.M[i][j], cls = [];
+        if (hl.has(i)) cls.push("rowhl"); if (piv.has(i + "," + j)) cls.push("pivot"); if (j === n) cls.push("bc");
+        if (prev && hl.has(i) && cur.kind !== "swap" && O.fmt(prev[i][j]) !== O.fmt(v)) cls.push("chv");
+        if (O.isZero(v)) cls.push("zero");
+        h += `<div class="${cls.join(" ")}" data-r="${i}" data-c="${j}">${O.fmt(v)}</div>`;
+      }
+    }
+    $("mat").style.gridTemplateColumns = `auto repeat(${n}, auto) auto`; $("mat").innerHTML = h;
+    $("mat").setAttribute("aria-label", "Augmented matrix: " + cur.M.map(r => r.map(O.fmt).join(", ")).join("; "));
+    if (atRef) drawStair(cur);
+    // text
+    $("opTitle").textContent = cur.title; $("why").textContent = cur.why;
+    const tgt = cur.changed.length === 1 ? `R${cur.changed[0] + 1}` : "";
+    $("calc").innerHTML = cur.calc.length ? `<span class="note" style="width:100%">Arithmetic for ${tgt}, entry by entry (old − multiplier × pivot-row entry):</span>` + cur.calc.map(c => `<span class="chip"><b>${c.label}</b>${c.text}</span>`).join("") : "";
+    if (cur.kind === "scale" || (cur.phase === "rref" && cur.calc.length && cur.kind === "scale")) $("calc").firstChild.textContent = `Arithmetic for ${tgt}, entry by entry (old ÷ pivot):`;
+    if (cur.kind === "back") $("calc").firstChild.textContent = "The substitution:";
+    // badges
+    const rr = st.branch === "rref" ? sq[sq.length - 1] : null, rrefDone = st.branch === "rref" && st.idx === sq.length - 1;
+    let b = `<span class="badge st">${cur.pivots.length} pivot${cur.pivots.length === 1 ? "" : "s"} so far</span>`;
+    if (atRef) b = `<span class="badge ref">${rrefDone ? "reduced row echelon form (RREF)" : "row echelon form"}</span><span class="badge rk">rank = ${t.info.rank} (the number of pivots)</span>`;
+    void rr; $("badges").innerHTML = b;
+    // buttons
+    const last = st.idx === sq.length - 1, atRefChoice = st.idx === t.refIdx && st.branch === null;
+    const canNext = !last || (atRefChoice && t.info.kind !== "none");
+    $("next").disabled = !canNext; $("back").disabled = st.idx === 0; $("reset").disabled = st.idx === 0 && !st.branch;
+    $("play").disabled = !canNext && !st.timer; $("play").textContent = st.timer ? "⏸ Pause" : "▶ Auto-play";
+    $("next").textContent = atRefChoice && t.info.kind !== "none" ? "Back substitute →" : "Next step →";
+    $("refRow").hidden = !atRefChoice;
+    $("refHint").textContent = t.info.kind === "none" ? "Nothing to substitute: the system has no solution. You can still reduce all the way to RREF." : "Scale each pivot to 1 and clear the entries above it. Or press Back substitute to solve from the bottom up.";
+    $("stepno").textContent = `Step ${st.idx + 1} of ${sq.length}${st.branch ? "" : atRefChoice ? "" : ""}`;
+    renderResult(cur, sq);
+    renderCode();
+    clearTimeout(render.lt); render.lt = setTimeout(() => { $("live").textContent = `${cur.title}. ${cur.why}`; }, 300);
+  }
+
+  function drawStair(cur) {
+    const mat = $("mat"), old = mat.querySelector("svg"); if (old) old.remove();
+    const cell = (r, c) => mat.querySelector(`[data-r="${r}"][data-c="${c}"]`), n = st.trace.M0[0].length - 1;
+    const ps = cur.pivots.slice().sort((a, b) => a[0] - b[0]); if (!ps.length) return;
+    const top = r => cell(r, 0).offsetTop, bot = r => cell(r, 0).offsetTop + cell(r, 0).offsetHeight, left = c => cell(0, c).offsetLeft;
+    const pts = [];
+    ps.forEach(([r, c]) => { pts.push([left(c) - 2, top(r)], [left(c) - 2, bot(r)]); });
+    const lastR = ps[ps.length - 1][0]; pts.push([left(n) - 4, bot(lastR)]);
+    const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg"); svg.setAttribute("class", "stair");
+    svg.setAttribute("width", mat.offsetWidth); svg.setAttribute("height", mat.offsetHeight);
+    const pl = document.createElementNS("http://www.w3.org/2000/svg", "polyline");
+    pl.setAttribute("points", pts.map(q => q.join(",")).join(" ")); pl.setAttribute("fill", "none"); pl.setAttribute("stroke", getComputedStyle(document.documentElement).getPropertyValue("--proj").trim());
+    pl.setAttribute("stroke-width", "3"); pl.setAttribute("stroke-dasharray", "7 5"); pl.setAttribute("stroke-linecap", "round"); pl.setAttribute("stroke-linejoin", "round");
+    svg.appendChild(pl); mat.appendChild(svg);
+  }
+
+  function renderResult(cur, sq) {
+    const t = st.trace, info = t.info, O = ops(), box = $("result");
+    if (st.idx < t.refIdx) { box.hidden = true; return; }
+    box.hidden = false;
+    let cls = "ok", h = "";
+    const names = Array.from({ length: t.M0[0].length - 1 }, (_, j) => nm(j));
+    if (info.kind === "none") {
+      cls = "none"; const row = t.refM[info.bad];
+      h = `<b>Row echelon form.</b> Rank ${info.rank}. R${info.bad + 1} reads <span class="mono">0 = ${O.fmt(row[row.length - 1])} ≠ 0</span>: no values of ${names.join(", ")} can make that true.<div class="ans">No solution.</div>`;
+    } else if (info.kind === "unique") {
+      h = `<b>Row echelon form.</b> ${info.rank} pivots, so rank = ${info.rank}, the same as the number of unknowns: exactly one solution, found by back substitution.`;
+    } else {
+      cls = "many";
+      h = `<b>Row echelon form.</b> Rank = ${info.rank}, but there are ${names.length} unknowns, so ${names.length - info.rank} free variable${names.length - info.rank > 1 ? "s" : ""}: <span class="mono">${info.free.map(nm).join(", ")}</span> (the column${info.free.length > 1 ? "s" : ""} without a pivot). ` +
+        (info.zeroRows ? `${info.zeroRows === 1 ? "The last row is" : info.zeroRows + " rows are"} <span class="mono">0 = 0</span>, which carries no information. ` : "") + `That means infinitely many solutions.`;
+    }
+    const showSol = (sol, X, F, intro) => {
+      if (info.kind === "unique") {
+        h += `<div class="ln">${intro}</div><div class="ans">(${names.join(", ")}) = (${X.map(x => F.str(x)).join(", ")})</div>`;
+      } else {
+        h += `<div class="ln">${intro}</div>` + sol.map(l => `<div class="ln">${l}</div>`).join("") + `<div class="ln muted">Pick any values for ${info.free.map(nm).join(", ")} and the rest follow.</div>`;
+      }
+    };
+    if (st.branch === "back" && cur.phase === "back") {
+      if (cur.final) showSol(answerLines(t.back.X, t.back.F), t.back.X, t.back.F, info.kind === "unique" ? "Solution:" : "General solution:");
+      else h += `<div class="ln" style="margin-top:6px">Found so far:</div>` + cur.solved.map(l => `<div class="ln">${l}</div>`).join("");
+    }
+    if (st.branch === "rref" && st.idx === sq.length - 1) {
+      h += `<div class="ln">In RREF the answer can be read straight off the matrix.</div>`;
+      if (info.kind === "none") h += "";
+      else showSol(answerLines(t.rrefSol.X, t.rrefSol.F), t.rrefSol.X, t.rrefSol.F, info.kind === "unique" ? "Solution:" : "General solution:");
+    }
+    // check against the original equations, and what floats got wrong
+    const finalSol = ((st.branch === "back" && cur.final) || (st.branch === "rref" && st.idx === sq.length - 1)) && info.kind === "unique" ? (st.branch === "back" ? t.back.X : t.rrefSol.X).map(x => x.c) : null;
+    if (finalSol) {
+      const F0 = t.M0, n = finalSol.length; let checks = "", allOk = true;
+      for (let i = 0; i < F0.length; i++) {
+        let lhs = O.zero, parts = [];
+        for (let j = 0; j < n; j++) { lhs = O.add(lhs, O.mul(F0[i][j], finalSol[j])); parts.push(`${paren(O.fmt(F0[i][j]))}×${paren(O.fmt(finalSol[j]))}`); }
+        const rhs = F0[i][n], ok = st.float ? Math.abs(lhs - rhs) <= 1e-9 * Math.max(1, Math.abs(rhs)) : O.cmpAbs(O.sub(lhs, rhs), O.zero) === 0;
+        if (!ok) allOk = false;
+        checks += `<div class="ln">eq ${i + 1}: ${parts.join(" + ")} = ${O.fmt(lhs)}${ok ? " ✓" : ` <span class="bad">✗ but the right side is ${O.fmt(rhs)}</span>`}</div>`;
+      }
+      h += `<div class="ln" style="margin-top:6px"><b>Check in the original equations:</b></div>${checks}`;
+      if (!allOk) h += `<div class="ln bad">This answer does not satisfy the system. Rounding in the steps above wrecked it. Turn on partial pivoting and run again.</div>`;
+      if (st.float) {
+        const ex = exactAnswer();
+        if (ex) h += `<div class="ln" style="margin-top:6px"><b>Exact fractions give:</b> ${ex}</div>`;
+      }
+    }
+    box.className = "result " + cls; box.innerHTML = h;
+  }
+  function exactAnswer() {
+    try {
+      const M0 = []; for (let i = 0; i < st.m; i++) { M0.push([]); for (let j = 0; j <= st.n; j++) M0[i].push(FRO.from(st.cells[i][j])); }
+      const fw = forward(M0, FRO, true), info = analyze(fw.M, fw.pivots, FRO); if (info.kind !== "unique") return null;
+      const bs = backsub(fw.M, fw.pivots, FRO, []);
+      return bs.X.map((x, j) => `${nm(j)} = ${FRO.isInt(x.c) ? FRO.fmt(x.c) : decimal(x.c, 22)}`).join(", ");
+    } catch (e) { return null; }
+  }
+
+  function numpySolution() {
+    const M0 = []; for (let i = 0; i < st.m; i++) { M0.push([]); for (let j = 0; j <= st.n; j++) M0[i].push(FLO.from(st.cells[i][j])); }
+    const fw = forward(M0, FLO, true), bs = backsub(fw.M, fw.pivots, FLO, []);
+    return bs.X.map(x => x.c);
+  }
+  function renderCode() {
+    const t = st.trace, O = ops(), num = x => (O.fmt(x)).replace("−", "-"), M0 = t.M0, n = st.n;
+    const A = "[" + M0.map(r => "[" + r.slice(0, n).map(x => `<span class="n">${num(x)}</span>`).join(", ") + "]").join(", ") + "]";
+    const bb = "[" + M0.map(r => `<span class="n">${num(r[n])}</span>`).join(", ") + "]";
+    const done = st.idx >= t.refIdx, info = t.info;
+    let L = `A = np.array(${A})\nb = np.array(${bb})\n`;
+    L += `np.linalg.matrix_rank(A)   <span class="c"># ${done ? info.rank : "step through first"}</span>\n`;
+    if (st.m === n) {
+      let cm = "step through first";
+      if (done) {
+        if (info.kind === "unique") {
+          const sol = numpySolution();   // NumPy always uses partial pivoting
+          cm = "[" + sol.map(v => { const r = Math.round(v * 1e8) / 1e8; return Number.isInteger(r) ? Math.round(r) + "." : String(r); }).join(" ") + "]";
+          if (st.float && !st.pivotOn) cm += "  NumPy pivots, so it differs from the unpivoted run";
+        }
+        else cm = "LinAlgError: Singular matrix";
+      }
+      L += `np.linalg.solve(A, b)     <span class="c"># ${cm}</span>`;
+    } else L += `<span class="c"># A is ${st.m} × ${n}, not square, so use elimination (or np.linalg.lstsq)</span>`;
+    $("code").innerHTML = L;
+  }
+
+  // ---------- controls ----------
+  function hardReset(reRenderEditor) {
+    stop(); st.idx = 0; st.branch = null; build();
+    if (reRenderEditor) renderEditor();
+    render();
+  }
+  function stop() { if (st.timer) { clearInterval(st.timer); st.timer = null; } }
+  function next() {
+    const t = st.trace; if (!t) return false; const sq = seq();
+    if (st.idx < sq.length - 1) { st.idx++; return true; }
+    if (st.idx === t.refIdx && st.branch === null && t.info.kind !== "none") { st.branch = "back"; st.idx++; return true; }
+    return false;
+  }
+  $("next").addEventListener("click", () => { stop(); next(); render(); });
+  $("back").addEventListener("click", () => { stop(); if (st.idx > 0) st.idx--; if (st.idx <= st.trace.refIdx) st.branch = null; render(); });
+  $("reset").addEventListener("click", () => { stop(); st.idx = 0; st.branch = null; render(); });
+  $("play").addEventListener("click", () => {
+    if (st.timer) { stop(); render(); return; }
+    if (!next()) { render(); return; }
+    render(); st.timer = setInterval(() => { if (!next()) { stop(); } render(); }, 1300); render();
+  });
+  $("toRref").addEventListener("click", () => { stop(); st.branch = "rref"; if (st.trace.rref.length) st.idx++; else { st.idx = st.trace.refIdx; } render(); });
+  $("pivotOn").addEventListener("change", () => { st.pivotOn = $("pivotOn").checked; hardReset(false); });
+  $("fl").addEventListener("change", () => { st.float = $("fl").checked; hardReset(false); });
+  document.querySelectorAll("#vm button").forEach(b => b.addEventListener("click", () => { st.vm = b.dataset.v; hardReset(true); }));
+  function resize(dim, d) {
+    const v = st[dim] + d; if (v < 2 || v > 4) return;
+    const old = st.cells, oldN = st.n; st[dim] = v;
+    st.cells = Array.from({ length: st.m }, (_, i) => Array.from({ length: st.n + 1 }, (_, j) => {
+      const src = j === st.n ? (old[i] ? old[i][oldN] : undefined) : (old[i] ? old[i][j] : undefined);
+      return src === undefined ? "0" : src;
+    }));
+    $("pText").textContent = "Custom system."; hardReset(true);
+  }
+  $("szM").children[0].addEventListener("click", () => resize("m", -1)); $("szM").children[1].addEventListener("click", () => resize("m", 1));
+  $("szN").children[0].addEventListener("click", () => resize("n", -1)); $("szN").children[1].addEventListener("click", () => resize("n", 1));
+
+  PRESETS.forEach(P => {
+    const b = document.createElement("button"); b.className = "primary"; b.textContent = P.k;
+    b.addEventListener("click", () => {
+      st.m = P.m; st.n = P.n; st.cells = P.c.map(r => r.slice()); st.vm = P.vm; st.pivotOn = P.piv; st.float = P.fl;
+      $("pText").textContent = P.text; hardReset(true);
+    });
+    $("presets").appendChild(b);
+  });
+
+  // start with the 6.3 system
+  const P0 = PRESETS[0]; st.m = P0.m; st.n = P0.n; st.cells = P0.c.map(r => r.slice());
+  window.addEventListener("resize", () => { if (st.trace && st.idx >= st.trace.refIdx) drawStair(seq()[st.idx]); });
+  renderEditor(); build(); render();
+})();
+</script>
+</body>
+</html>
